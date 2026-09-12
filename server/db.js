@@ -18,64 +18,59 @@ db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS graduates (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    nim TEXT UNIQUE NOT NULL,
-    faculty TEXT,
-    major TEXT,
-    scanned_at TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS scans (
+  CREATE TABLE IF NOT EXISTS invitations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    graduate_id TEXT NOT NULL,
-    scanner_id TEXT NOT NULL,
-    scanned_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (graduate_id) REFERENCES graduates(id)
+    qr_code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    parent_name TEXT,
+    quota INTEGER DEFAULT 2,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE INDEX IF NOT EXISTS idx_scans_graduate ON scans(graduate_id);
-  CREATE INDEX IF NOT EXISTS idx_scans_scanner ON scans(scanner_id);
-  CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);
+  CREATE TABLE IF NOT EXISTS attendances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    qr_code TEXT NOT NULL,
+    name TEXT,
+    scanner_id TEXT,
+    status TEXT CHECK(status IN ('success','duplicate')),
+    scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (qr_code) REFERENCES invitations(qr_code)
+  );
 `)
 
-const cols = db.prepare("PRAGMA table_info(graduates)").all().map(c => c.name)
-if (!cols.includes('scanned_at')) {
-  db.exec('ALTER TABLE graduates ADD COLUMN scanned_at TEXT')
+const findInvitationStmt = db.prepare('SELECT * FROM invitations WHERE qr_code = ?')
+const getAttendanceByQrStmt = db.prepare('SELECT * FROM attendances WHERE qr_code = ? ORDER BY scanned_at DESC LIMIT 1')
+const recordAttendanceStmt = db.prepare('INSERT INTO attendances (qr_code, name, scanner_id, status) VALUES (?, ?, ?, ?)')
+const getAllAttendancesStmt = db.prepare('SELECT * FROM attendances ORDER BY scanned_at DESC LIMIT ?')
+const getStatsStmt = db.prepare(`
+  SELECT 
+    (SELECT COUNT(*) FROM invitations) as total,
+    (SELECT COUNT(DISTINCT qr_code) FROM attendances WHERE status = 'success') as hadir
+`)
+
+export function findInvitation(qrCode) {
+  return findInvitationStmt.get(qrCode)
 }
 
-export const getGraduateById = db.prepare('SELECT * FROM graduates WHERE id = ?')
-export const getGraduateByNim = db.prepare('SELECT * FROM graduates WHERE nim = ?')
-export const getAllGraduates = db.prepare('SELECT * FROM graduates ORDER BY id')
-export const insertGraduate = db.prepare('INSERT INTO graduates (id, name, nim, faculty, major) VALUES (?, ?, ?, ?, ?)')
-export const updateGraduateScannedAt = db.prepare('UPDATE graduates SET scanned_at = CURRENT_TIMESTAMP WHERE id = ?')
+export function getAttendanceByQr(qrCode) {
+  return getAttendanceByQrStmt.get(qrCode)
+}
 
-export const insertScan = db.prepare('INSERT INTO scans (graduate_id, scanner_id) VALUES (?, ?)')
-export const getScansByScanner = db.prepare('SELECT * FROM scans WHERE scanner_id = ? ORDER BY scanned_at DESC')
-export const getRecentScans = db.prepare('SELECT * FROM scans ORDER BY scanned_at DESC LIMIT 100')
+export function recordAttendance(qrCode, name, scannerId, status) {
+  return recordAttendanceStmt.run(qrCode, name, scannerId, status)
+}
 
-export const getStats = db.prepare(`
-  SELECT 
-    (SELECT COUNT(*) FROM graduates) as total,
-    (SELECT COUNT(*) FROM graduates WHERE scanned_at IS NOT NULL) as scanned,
-    (SELECT COUNT(*) FROM graduates WHERE scanned_at IS NULL) as pending
-`)
+export function getAllAttendances(limit = 50) {
+  return getAllAttendancesStmt.all(limit)
+}
 
-export const getStatsByScanner = db.prepare(`
-  SELECT scanner_id, COUNT(*) as count
-  FROM scans
-  GROUP BY scanner_id
-`)
-
-export function getDashboardStats() {
-  const stats = getStats.get()
-  const byScanner = getStatsByScanner.all().reduce((acc, row) => {
-    acc[row.scanner_id] = row.count
-    return acc
-  }, {})
-  return { ...stats, byScanner }
+export function getStats() {
+  const row = getStatsStmt.get()
+  return {
+    total: row.total,
+    hadir: row.hadir,
+    belumHadir: row.total - row.hadir
+  }
 }
 
 export default db
