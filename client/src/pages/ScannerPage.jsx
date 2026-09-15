@@ -10,19 +10,12 @@ import { playSuccess, playError } from '../utils/sound'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
-// Konfigurasi warna/label untuk setiap status scan
-const statusConfig = {
-  success:   { bg: 'bg-green-500',  text: 'text-white', icon: '✓', label: 'HADIR' },
-  duplicate: { bg: 'bg-yellow-400', text: 'text-black', icon: '⚠', label: 'SUDAH HADIR' },
-  not_found: { bg: 'bg-red-500',    text: 'text-white', icon: '✗', label: 'QR TIDAK VALID' },
-  default:   { bg: 'bg-gray-200',   text: 'text-gray-500', icon: '', label: 'Menunggu scan...' }
-}
-
 export default function ScannerPage() {
   const [lastResult, setLastResult] = useState(null)
   const [attendances, setAttendances] = useState([])
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
   const [manualInput, setManualInput] = useState('')
+  const [lastUpdateTime, setLastUpdateTime] = useState(null)
 
   // Fetch statistik kehadiran
   const fetchStats = useCallback(async () => {
@@ -53,6 +46,7 @@ export default function ScannerPage() {
   // Socket: dengarkan event attendance_update dari server
   const { status: connectionStatus } = useSocket('attendance_update', useCallback((data) => {
     setLastResult(data)
+    setLastUpdateTime(new Date())
     // Hanya tampilkan di sidebar jika status success
     if (data.status === 'success') {
       setAttendances((prev) => [data, ...prev].slice(0, 10))
@@ -93,75 +87,179 @@ export default function ScannerPage() {
   // Scanner: kirim kode ke server saat scan terdeteksi
   useScanner(handleScan)
 
-  // Tentukan config berdasarkan status terakhir
-  const cfg = statusConfig[lastResult?.status] || statusConfig.default
+  const cfg = lastResult?.status
 
   return (
-    <div className="flex-1 flex flex-col">
-      {/* Indikator koneksi socket */}
-      <div className="flex items-center justify-end gap-2 px-6 pt-3">
-        <span className={`w-3 h-3 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className="text-sm text-slate-600">{connectionStatus}</span>
+    <div className="p-6 max-w-7xl mx-auto w-full flex flex-col gap-5 min-h-[calc(100vh-3.5rem)]">
+
+      {/* Indikator koneksi */}
+      <div className="flex items-center justify-end gap-1.5 shrink-0">
+        <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+        <span className="text-xs text-slate-500">{connectionStatus}</span>
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 grid grid-cols-3 gap-4 p-6">
-        {/* Kiri: Input + Status */}
-        <div className="col-span-2 flex flex-col gap-4">
-          {/* Input manual untuk testing tanpa scanner HID */}
+      {/* Kartu Statistik */}
+      <div className="grid grid-cols-3 gap-4 shrink-0">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
+            <span className="text-xl text-white">✓</span>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-emerald-600">Hadir</p>
+            <p className="text-2xl font-semibold text-emerald-700">{stats.hadir}</p>
+          </div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
+            <span className="text-xl text-white">○</span>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-amber-600">Belum Hadir</p>
+            <p className="text-2xl font-semibold text-amber-700">{stats.belumHadir}</p>
+          </div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center">
+            <span className="text-xl text-white">#</span>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-indigo-600">Total</p>
+            <p className="text-2xl font-semibold text-indigo-700">{stats.total}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid utama */}
+      <div className="flex-1 grid grid-cols-3 gap-5 min-h-0">
+
+        {/* Kolom kiri: Input + Status */}
+        <div className="col-span-2 flex flex-col gap-4 min-h-0">
+
+          {/* Input manual */}
           <form onSubmit={(e) => {
             e.preventDefault()
             if (manualInput.trim()) {
               handleScan(manualInput.trim())
               setManualInput('')
             }
-          }} className="flex gap-2">
-            <input
-              type="text"
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Ketik kode undangan lalu Enter (test manual)"
-              className="flex-1 text-2xl px-4 py-3 rounded-lg border-2 border-slate-300 bg-white font-mono focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 rounded-lg font-semibold"
-            >
-              Scan
-            </button>
+          }} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm shrink-0">
+            <label className="block text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1.5">Input Manual</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                placeholder="Ketik kode undangan atau scan QR..."
+                className="flex-1 px-4 py-2 text-base font-mono rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition"
+              />
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition"
+              >
+                Scan
+              </button>
+            </div>
           </form>
 
-          {/* Kotak status besar */}
-          <div className={`flex-1 rounded-2xl flex flex-col items-center justify-center ${cfg.bg} ${cfg.text} min-h-[16rem]`}>
-            {cfg.icon && <div className="text-7xl mb-4">{cfg.icon}</div>}
-            <div className="text-4xl font-bold">{cfg.label}</div>
-            {lastResult?.name && <div className="text-3xl mt-2">{lastResult.name}</div>}
+          {/* Kotak Status */}
+          {cfg ? (
+            <div
+              key={lastResult?.scanned_at}
+              className={`flex-1 rounded-xl border-2 flex flex-col items-center justify-center p-6 min-h-0 animate-pop-in ${
+                cfg === 'success'
+                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-500'
+                  : cfg === 'duplicate'
+                  ? 'bg-gradient-to-br from-amber-50 to-amber-100 border-amber-500'
+                  : 'bg-gradient-to-br from-rose-50 to-rose-100 border-rose-500'
+              }`}
+            >
+              {cfg === 'success' && (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                    <span className="text-4xl text-emerald-600 font-bold">✓</span>
+                  </div>
+                  <div className="text-4xl font-bold tracking-wide text-emerald-700">HADIR</div>
+                  {lastResult?.name && <div className="text-2xl font-semibold text-emerald-900 mt-2">{lastResult.name}</div>}
+                  {lastResult?.scanned_at && <div className="text-sm text-emerald-600 mt-1">{new Date(lastResult.scanned_at).toLocaleTimeString('id-ID')}</div>}
+                </>
+              )}
+              {cfg === 'duplicate' && (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-3">
+                    <span className="text-4xl text-amber-600">⚠</span>
+                  </div>
+                  <div className="text-3xl font-bold text-amber-700">SUDAH HADIR</div>
+                  {lastResult?.name && <div className="text-2xl font-semibold text-amber-900 mt-2">{lastResult.name}</div>}
+                  {lastResult?.scanned_at && <div className="text-sm text-amber-600 mt-1">{new Date(lastResult.scanned_at).toLocaleTimeString('id-ID')}</div>}
+                </>
+              )}
+              {cfg === 'not_found' && (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mb-3">
+                    <span className="text-4xl text-rose-600">✗</span>
+                  </div>
+                  <div className="text-3xl font-bold text-rose-700">QR TIDAK VALID</div>
+                  <div className="text-sm text-rose-500 font-mono mt-2">{lastResult?.qr_code}</div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 rounded-xl border-2 border-dashed border-indigo-200 bg-gradient-to-br from-slate-50 to-indigo-50/40 flex flex-col items-center justify-center min-h-0 p-6">
+              <div className="text-6xl mb-3 text-indigo-300">📷</div>
+              <div className="text-lg font-semibold text-slate-600">Siap menerima scan</div>
+              <div className="text-sm text-slate-400 mt-1">Arahkan QR code ke alat scanner</div>
+            </div>
+          )}
+        </div>
+
+        {/* Kolom kanan: Sidebar */}
+        <div className="flex flex-col gap-4 min-h-0">
+
+          {/* Kehadiran Terakhir */}
+          <div className="bg-white border border-slate-200 rounded-xl flex flex-col min-h-0 flex-1 shadow-sm overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center shrink-0">
+              <h2 className="text-sm font-semibold text-slate-700">Kehadiran Terakhir</h2>
+              {attendances.length > 0 && (
+                <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">{attendances.length}</span>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 bg-white space-y-1 min-h-0">
+              {attendances.map((a, i) => (
+                <div key={i} className="flex justify-between items-center py-2 px-2 rounded-lg hover:bg-indigo-50/50 text-sm transition">
+                  <span className="font-medium text-slate-800">{a.name}</span>
+                  <span className="text-xs text-slate-400">
+                    {new Date(a.scanned_at).toLocaleTimeString('id-ID')}
+                  </span>
+                </div>
+              ))}
+              {attendances.length === 0 && (
+                <div className="text-center py-8">
+                  <div className="text-4xl text-slate-300 mb-2">👥</div>
+                  <p className="text-sm text-slate-400">Belum ada kehadiran</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Info Sistem */}
+          <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-xs space-y-1 shrink-0">
+            <div className="flex justify-between">
+              <span className="text-indigo-600 font-medium">Server</span>
+              <span className="text-indigo-900/70">{API_URL || 'localhost:3000'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-indigo-600 font-medium">Scanner ID</span>
+              <span className="text-indigo-900/70">{localStorage.getItem('scanner_id') || 'PC-1'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-indigo-600 font-medium">Terakhir update</span>
+              <span className="text-indigo-900/70">
+                {lastUpdateTime ? lastUpdateTime.toLocaleTimeString('id-ID') : '-'}
+              </span>
+            </div>
           </div>
         </div>
-
-        {/* Kanan: Daftar kehadiran terakhir */}
-        <div className="bg-white rounded-2xl shadow p-4 flex flex-col">
-          <h2 className="text-lg font-bold mb-3">Kehadiran Terakhir</h2>
-          <ul className="flex-1 overflow-y-auto space-y-2">
-            {attendances.map((a, i) => (
-              <li key={i} className="flex justify-between text-sm border-b pb-1">
-                <span className="font-medium">{a.name}</span>
-                <span className="text-slate-500">
-                  {new Date(a.scanned_at).toLocaleTimeString('id-ID')}
-                </span>
-              </li>
-            ))}
-            {attendances.length === 0 && (
-              <li className="text-slate-400 text-sm">Belum ada kehadiran</li>
-            )}
-          </ul>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white shadow px-6 py-3 text-center text-lg font-semibold">
-        Hadir: {stats.hadir} / Total: {stats.total}
-      </footer>
+      </div>
     </div>
   )
 }
