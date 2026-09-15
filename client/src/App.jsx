@@ -1,5 +1,6 @@
-function App() {
-  return <div>Scan Wisuda</div>
-}
+import ScannerPage from './pages/ScannerPage'
 
-export default App
+// TODO: tambah routing jika nanti ada halaman admin
+export default function App() {
+  return <ScannerPage />
+}
