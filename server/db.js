@@ -41,7 +41,13 @@ db.exec(`
 const findInvitationStmt = db.prepare('SELECT * FROM invitations WHERE qr_code = ?')
 const getAttendanceByQrStmt = db.prepare('SELECT * FROM attendances WHERE qr_code = ? ORDER BY scanned_at DESC LIMIT 1')
 const recordAttendanceStmt = db.prepare('INSERT INTO attendances (qr_code, name, scanner_id, status) VALUES (?, ?, ?, ?)')
-const getAllAttendancesStmt = db.prepare('SELECT * FROM attendances ORDER BY scanned_at DESC LIMIT ?')
+const getAllAttendancesStmt = db.prepare(`
+  SELECT a.id, a.qr_code, a.name, a.scanner_id, a.status, a.scanned_at
+  FROM attendances a
+  WHERE a.status = 'success'
+  ORDER BY a.scanned_at DESC
+  LIMIT ?
+`)
 const getStatsStmt = db.prepare(`
   SELECT 
     (SELECT COUNT(*) FROM invitations) as total,

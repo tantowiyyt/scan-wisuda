@@ -53,7 +53,10 @@ export default function ScannerPage() {
   // Socket: dengarkan event attendance_update dari server
   const { status: connectionStatus } = useSocket('attendance_update', useCallback((data) => {
     setLastResult(data)
-    setAttendances((prev) => [data, ...prev].slice(0, 10))
+    // Hanya tampilkan di sidebar jika status success
+    if (data.status === 'success') {
+      setAttendances((prev) => [data, ...prev].slice(0, 10))
+    }
     fetchStats()
     if (data.status === 'success') {
       playSuccess()
