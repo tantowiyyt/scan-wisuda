@@ -44,9 +44,9 @@ export default function DaftarMahasiswaPage() {
     <div className="p-6 max-w-6xl mx-auto w-full">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-1">Daftar Mahasiswa Wisuda</h2>
-        <p className="text-slate-600">
-          Hadir: <span className="font-semibold text-green-600">{stats.hadir}</span>
+        <h2 className="text-2xl font-bold mb-1 dark:text-slate-100">Daftar Mahasiswa Wisuda</h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          Hadir: <span className="font-semibold text-green-600 dark:text-green-400">{stats.hadir}</span>
           {' / '}
           Total: <span className="font-semibold">{stats.total}</span>
         </p>
@@ -58,14 +58,14 @@ export default function DaftarMahasiswaPage() {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Cari nama atau kode QR..."
-        className="w-full md:w-96 px-4 py-2 border-2 border-slate-300 rounded-lg mb-4 focus:border-blue-500 focus:outline-none bg-white"
+        className="w-full md:w-96 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 rounded-lg mb-4 focus:border-blue-500 focus:dark:border-blue-400 focus:outline-none bg-white transition-colors"
       />
 
       {/* Tabel */}
-      <div className="bg-white rounded-2xl shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl shadow overflow-hidden transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-100 text-slate-700">
+            <thead className="bg-slate-100 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
               <tr>
                 <th className="px-4 py-3 font-semibold">QR Code</th>
                 <th className="px-4 py-3 font-semibold">Nama</th>
@@ -77,23 +77,23 @@ export default function DaftarMahasiswaPage() {
             </thead>
             <tbody>
               {filtered.map(m => (
-                <tr key={m.qr_code} className="border-t border-slate-200 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-sm">{m.qr_code}</td>
-                  <td className="px-4 py-3 font-medium">{m.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{m.parent_name || '-'}</td>
-                  <td className="px-4 py-3 text-center">{m.quota}</td>
+                <tr key={m.qr_code} className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <td className="px-4 py-3 font-mono text-sm dark:text-slate-200">{m.qr_code}</td>
+                  <td className="px-4 py-3 font-medium dark:text-slate-200">{m.name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{m.parent_name || '-'}</td>
+                  <td className="px-4 py-3 text-center dark:text-slate-200">{m.quota}</td>
                   <td className="px-4 py-3">
                     {m.status === 'hadir' ? (
-                      <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                      <span className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 px-2 py-1 rounded-full text-xs font-semibold">
                         ✓ Hadir
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded-full text-xs font-semibold">
+                      <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-full text-xs font-semibold">
                         Belum
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-sm">
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">
                     {m.scanned_at
                       ? new Date(m.scanned_at).toLocaleString('id-ID')
                       : '-'}
@@ -104,7 +104,7 @@ export default function DaftarMahasiswaPage() {
           </table>
         </div>
         {filtered.length === 0 && (
-          <div className="p-8 text-center text-slate-400">
+          <div className="p-8 text-center text-slate-400 dark:text-slate-500">
             Tidak ada mahasiswa yang cocok dengan pencarian.
           </div>
         )}
