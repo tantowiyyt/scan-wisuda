@@ -5,7 +5,7 @@ import dotenv from 'dotenv'
 import { Server } from 'socket.io'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import db, { getStats, getAllAttendances } from './db.js'
+import db, { getStats, getAllAttendances, getAllInvitationsWithStatus } from './db.js'
 import scanRouter from './routes/scan.js'
 
 dotenv.config()
@@ -39,6 +39,10 @@ app.get('/api/attendances', (req, res) => {
 
 app.get('/api/stats', (req, res) => {
   res.json({ status: 'success', data: getStats() })
+})
+
+app.get('/api/invitations', (req, res) => {
+  res.json({ status: 'success', data: getAllInvitationsWithStatus() })
 })
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist')

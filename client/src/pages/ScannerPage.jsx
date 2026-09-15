@@ -22,6 +22,7 @@ export default function ScannerPage() {
   const [lastResult, setLastResult] = useState(null)
   const [attendances, setAttendances] = useState([])
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
+  const [manualInput, setManualInput] = useState('')
 
   // Fetch statistik kehadiran
   const fetchStats = useCallback(async () => {
@@ -61,8 +62,8 @@ export default function ScannerPage() {
     }
   }, [fetchStats]))
 
-  // Scanner: kirim kode ke server saat scan terdeteksi
-  useScanner(useCallback(async (code) => {
+  // Fungsi handleScan: dikirim dari useScanner ATAU dari input manual
+  async function handleScan(code) {
     try {
       const res = await fetch(`${API_URL}/api/scan`, {
         method: 'POST',
@@ -84,7 +85,10 @@ export default function ScannerPage() {
       setLastResult({ status: 'not_found', qr_code: code })
       playError()
     }
-  }, []))
+  }
+
+  // Scanner: kirim kode ke server saat scan terdeteksi
+  useScanner(handleScan)
 
   // Tentukan config berdasarkan status terakhir
   const cfg = statusConfig[lastResult?.status] || statusConfig.default
@@ -104,13 +108,28 @@ export default function ScannerPage() {
       <main className="flex-1 grid grid-cols-3 gap-4 p-6">
         {/* Kiri: Input + Status */}
         <div className="col-span-2 flex flex-col gap-4">
-          {/* Input readonly untuk verifikasi visual kode yang di-scan */}
-          <input
-            readOnly
-            value={lastResult?.qr_code || ''}
-            placeholder="Menunggu scan..."
-            className="w-full text-2xl px-4 py-3 rounded-lg border-2 border-slate-300 bg-white font-mono"
-          />
+          {/* Input manual untuk testing tanpa scanner HID */}
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            if (manualInput.trim()) {
+              handleScan(manualInput.trim())
+              setManualInput('')
+            }
+          }} className="flex gap-2">
+            <input
+              type="text"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="Ketik kode undangan lalu Enter (test manual)"
+              className="flex-1 text-2xl px-4 py-3 rounded-lg border-2 border-slate-300 bg-white font-mono focus:border-blue-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 rounded-lg font-semibold"
+            >
+              Scan
+            </button>
+          </form>
 
           {/* Kotak status besar */}
           <div className={`flex-1 rounded-2xl flex flex-col items-center justify-center ${cfg.bg} ${cfg.text} min-h-[16rem]`}>

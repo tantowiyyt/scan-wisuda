@@ -73,4 +73,27 @@ export function getStats() {
   }
 }
 
+// Ambil semua undangan beserta status kehadiran (untuk halaman admin)
+const getAllInvitationsWithStatusStmt = db.prepare(`
+  SELECT 
+    i.qr_code,
+    i.name,
+    i.parent_name,
+    i.quota,
+    i.created_at,
+    CASE 
+      WHEN a.id IS NOT NULL AND a.status = 'success' THEN 'hadir'
+      WHEN a.id IS NOT NULL AND a.status = 'duplicate' THEN 'duplicate'
+      ELSE 'belum'
+    END AS status,
+    a.scanned_at
+  FROM invitations i
+  LEFT JOIN attendances a ON a.qr_code = i.qr_code AND a.status = 'success'
+  ORDER BY i.qr_code ASC
+`)
+
+export function getAllInvitationsWithStatus() {
+  return getAllInvitationsWithStatusStmt.all()
+}
+
 export default db

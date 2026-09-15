@@ -1,42 +1,57 @@
 # AGENTS.md — Scan Wisuda
 
-## Project Overview
+## Ringkasan Proyek
 Aplikasi absensi QR code untuk wisuda. Scanner HID keyboard → Backend (Express + Socket.IO + SQLite) → Frontend React realtime.
 
-## Commands
-| Command | Description |
-|---------|-------------|
-| `npm run install:all` | Install dependencies di root, server, dan client |
-| `npm run dev` | Jalankan server + client (concurrently) |
-| `npm run seed` | Seed database SQLite dengan data dummy |
-| `npm run build` | Build client untuk production |
-| `npm run start` | Jalankan server production |
+## Cara Install
+```bash
+npm run install:all
+```
+Install dependencies di root, server, dan client sekaligus.
 
-## Ports
-- Server: 3000 (Express + Socket.IO)
-- Client: 5173 (Vite dev server)
+## Cara Seed
+```bash
+npm run seed
+```
+Seed database SQLite dengan data dummy (10 wisudawan).
 
-## Conventions
-- ESM modules ("type": "module" di semua package.json)
-- Tailwind CSS v3 (bukan v4)
-- QR format: plain text (contoh: "WSD-001")
-- Auth minimal: scanner_id via localStorage, default "PC-1"
+## Cara Development
+```bash
+npm run dev
+```
+Jalankan server (port 3000) + client (port 5173) secara paralel.
 
-## Structure
+## Cara Build Production
+```bash
+npm run build   # Build client ke client/dist/
+npm start       # Jalankan server production (port 3000)
+```
+
+## Konvensi
+- **ESM**: Semua file pakai `import/export` (`"type": "module"` di semua package.json)
+- **Komentar**: Bahasa Indonesia di blok penting
+- **Tailwind CSS v3** (bukan v4)
+- **QR format**: Plain text, contoh: `WSD-001`
+- **Auth minimal**: `scanner_id` via localStorage, default `PC-1`
+- **Jangan commit file `.env`** — gunakan `.env.example` sebagai template
+
+## Struktur Folder
 ```
 scan-wisuda/
 ├── package.json          # root workspace
 ├── .gitignore
 ├── AGENTS.md
 ├── README.md
+├── TESTING.md
 ├── server/
 │   ├── package.json
 │   ├── .env.example
-│   ├── index.js
-│   ├── db.js
-│   ├── seed.js
-│   ├── routes/scan.js
-│   └── data/
+│   ├── index.js          # Express + Socket.IO server
+│   ├── db.js             # SQLite setup
+│   ├── seed.js           # Database seeder
+│   ├── routes/
+│   │   └── scan.js       # API endpoints
+│   └── data/             # SQLite database file
 └── client/
     ├── package.json
     ├── .env.example
@@ -45,11 +60,14 @@ scan-wisuda/
     ├── postcss.config.js
     ├── index.html
     └── src/
-        ├── main.jsx
-        ├── App.jsx
-        ├── index.css
-        ├── hooks/useScanner.js
-        ├── hooks/useSocket.js
-        ├── pages/ScannerPage.jsx
-        └── utils/sound.js
+        ├── main.jsx       # Entry point React
+        ├── App.jsx        # Root component
+        ├── index.css      # Tailwind directives
+        ├── hooks/
+        │   ├── useScanner.js   # Tangkap input HID scanner
+        │   └── useSocket.js    # Koneksi Socket.IO
+        ├── pages/
+        │   └── ScannerPage.jsx # Halaman utama scanner
+        └── utils/
+            └── sound.js        # Web Audio API beep
 ```
