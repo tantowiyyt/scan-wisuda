@@ -94,15 +94,12 @@ export default function ScannerPage() {
   const cfg = statusConfig[lastResult?.status] || statusConfig.default
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Absensi Wisuda</h1>
-        <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-sm text-slate-600">{connectionStatus}</span>
-        </div>
-      </header>
+    <div className="flex-1 flex flex-col">
+      {/* Indikator koneksi socket */}
+      <div className="flex items-center justify-end gap-2 px-6 pt-3">
+        <span className={`w-3 h-3 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
+        <span className="text-sm text-slate-600">{connectionStatus}</span>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 grid grid-cols-3 gap-4 p-6">
