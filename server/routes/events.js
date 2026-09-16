@@ -106,6 +106,16 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
     for (const row of rows) {
       const qr = String(getVal(row, ['qr_code', 'qrcode', 'qr'])).trim()
       const nm = String(getVal(row, ['name', 'nama'])).trim()
+      const prodi = String(getVal(row, ['prodi', 'program_studi', 'program studi', 'jurusan']) || '').trim()
+      const jenjang = String(getVal(row, ['jenjang', 'program', 'strata']) || '').trim().toUpperCase()
+      
+      // Normalisasi jenjang
+      const jenjangNorm = jenjang.match(/^D\d$/) ? jenjang 
+        : jenjang.toLowerCase().includes('diploma 3') ? 'D3'
+        : jenjang.toLowerCase().includes('diploma 4') ? 'D4'
+        : jenjang.toLowerCase().includes('sarjana terapan') ? 'D4'
+        : jenjang || null
+
       const parent = String(getVal(row, ['parent_name', 'parent', 'orang_tua', 'orangtua']) || '').trim()
       const quotaVal = parseInt(getVal(row, ['quota', 'kuota'])) || 2
 
@@ -114,7 +124,7 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
         continue
       }
 
-      createInvitation(eventId, qr, nm, parent, quotaVal)
+      createInvitation(eventId, qr, nm, prodi || null, jenjangNorm, parent || null, quotaVal)
       imported++
     }
 

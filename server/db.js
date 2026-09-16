@@ -31,6 +31,8 @@ db.exec(`
     event_id INTEGER NOT NULL,
     qr_code TEXT NOT NULL,
     name TEXT NOT NULL,
+    prodi TEXT,
+    jenjang TEXT,
     parent_name TEXT,
     quota INTEGER DEFAULT 2,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -72,6 +74,8 @@ const getAllInvitationsWithStatusStmt = db.prepare(`
     i.event_id,
     i.qr_code,
     i.name,
+    i.prodi,
+    i.jenjang,
     i.parent_name,
     i.quota,
     i.created_at,
@@ -92,8 +96,15 @@ const getEventByIdStmt = db.prepare('SELECT * FROM events WHERE id = ?')
 const createEventStmt = db.prepare('INSERT INTO events (name, year, event_date) VALUES (?, ?, ?)')
 const updateEventStmt = db.prepare('UPDATE events SET name = ?, year = ?, event_date = ? WHERE id = ?')
 const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
-const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, qr_code, name, parent_name, quota) VALUES (?, ?, ?, ?, ?)')
+const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, qr_code, name, prodi, jenjang, parent_name, quota) VALUES (?, ?, ?, ?, ?, ?, ?)')
 const countInvitationsByEventStmt = db.prepare('SELECT COUNT(*) as count FROM invitations WHERE event_id = ?')
+
+const getInvitationsForQRCodesStmt = db.prepare(`
+  SELECT qr_code, name, prodi, jenjang 
+  FROM invitations 
+  WHERE event_id = ? 
+  ORDER BY prodi ASC, name ASC
+`)
 
 export function findInvitation(eventId, qrCode) {
   return findInvitationStmt.get(eventId, qrCode)
@@ -144,12 +155,16 @@ export function deleteEvent(id) {
   return deleteEventStmt.run(id)
 }
 
-export function createInvitation(eventId, qrCode, name, parentName, quota) {
-  return createInvitationStmt.run(eventId, qrCode, name, parentName, quota)
+export function createInvitation(eventId, qrCode, name, prodi, jenjang, parentName, quota) {
+  return createInvitationStmt.run(eventId, qrCode, name, prodi || null, jenjang || null, parentName || null, quota || 2)
 }
 
 export function countInvitationsByEvent(eventId) {
   return countInvitationsByEventStmt.get(eventId).count
+}
+
+export function getInvitationsForQRCodes(eventId) {
+  return getInvitationsForQRCodesStmt.all(eventId)
 }
 
 export default db
