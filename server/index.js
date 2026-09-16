@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 import db, { getStats, getAllAttendances, getAllInvitationsWithStatus, getAllEvents } from './db.js'
 import scanRouter from './routes/scan.js'
 import eventsRouter from './routes/events.js'
+import qrcodesRouter from './routes/qrcodes.js'
 
 dotenv.config()
 
@@ -33,6 +34,7 @@ io.on('connection', (socket) => {
 })
 
 app.use('/api/scan', scanRouter)
+app.use('/api/events/:id/qrcodes', qrcodesRouter) // HARUS SEBELUM events
 app.use('/api/events', eventsRouter)
 
 function getDefaultEventId() {
