@@ -4,21 +4,33 @@
  */
 
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useSocket from '../hooks/useSocket'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
 export default function DaftarMahasiswaPage() {
+  const navigate = useNavigate()
+  const currentEventId = localStorage.getItem('currentEventId')
+  const currentEventName = localStorage.getItem('currentEventName')
   const [mahasiswa, setMahasiswa] = useState([])
   const [search, setSearch] = useState('')
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
 
+  // Redirect ke pilih event jika belum ada event yang dipilih
+  useEffect(() => {
+    if (!currentEventId) {
+      navigate('/pilih-event')
+    }
+  }, [currentEventId, navigate])
+
   // Ambil data dari server
   async function fetchData() {
+    if (!currentEventId) return
     try {
       const [invRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/api/invitations`),
-        fetch(`${API_URL}/api/stats`)
+        fetch(`${API_URL}/api/events/${currentEventId}/invitations`),
+        fetch(`${API_URL}/api/stats?event_id=${currentEventId}`)
       ])
       const invJson = await invRes.json()
       const statsJson = await statsRes.json()
@@ -29,7 +41,7 @@ export default function DaftarMahasiswaPage() {
     }
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [currentEventId])
 
   // Update data setiap ada scan baru
   useSocket('attendance_update', () => { fetchData() })
@@ -45,6 +57,9 @@ export default function DaftarMahasiswaPage() {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-1 dark:text-slate-100">Daftar Mahasiswa Wisuda</h2>
+        {currentEventName && (
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">{currentEventName}</p>
+        )}
         <p className="text-slate-600 dark:text-slate-400">
           Hadir: <span className="font-semibold text-green-600 dark:text-green-400">{stats.hadir}</span>
           {' / '}

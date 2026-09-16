@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useScanner from '../hooks/useScanner'
 import useSocket from '../hooks/useSocket'
 import { playSuccess, playError } from '../utils/sound'
@@ -11,28 +12,39 @@ import { playSuccess, playError } from '../utils/sound'
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
 export default function ScannerPage() {
+  const navigate = useNavigate()
+  const currentEventId = localStorage.getItem('currentEventId')
+  const currentEventName = localStorage.getItem('currentEventName')
   const [lastResult, setLastResult] = useState(null)
   const [attendances, setAttendances] = useState([])
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
   const [manualInput, setManualInput] = useState('')
   const [lastUpdateTime, setLastUpdateTime] = useState(null)
 
+  // Redirect ke pilih event jika belum ada event yang dipilih
+  useEffect(() => {
+    if (!currentEventId) {
+      navigate('/pilih-event')
+    }
+  }, [currentEventId, navigate])
+
   // Fetch statistik kehadiran
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/stats`)
+      const res = await fetch(`${API_URL}/api/stats?event_id=${currentEventId}`)
       const json = await res.json()
       setStats(json.data)
     } catch (err) {
       console.error('Gagal mengambil stats:', err)
     }
-  }, [])
+  }, [currentEventId])
 
   // Ambil data awal saat mount
   useEffect(() => {
+    if (!currentEventId) return
     const fetchInitial = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/attendances`)
+        const res = await fetch(`${API_URL}/api/attendances?event_id=${currentEventId}`)
         const json = await res.json()
         setAttendances(json.data.slice(0, 10))
       } catch (err) {
@@ -41,7 +53,7 @@ export default function ScannerPage() {
       fetchStats()
     }
     fetchInitial()
-  }, [fetchStats])
+  }, [fetchStats, currentEventId])
 
   // Socket: dengarkan event attendance_update dari server
   const { status: connectionStatus } = useSocket('attendance_update', useCallback((data) => {
@@ -67,7 +79,8 @@ export default function ScannerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           qr_code: code,
-          scanner_id: localStorage.getItem('scanner_id') || 'PC-1'
+          scanner_id: localStorage.getItem('scanner_id') || 'PC-1',
+          event_id: parseInt(currentEventId)
         })
       })
       const json = await res.json()
@@ -91,6 +104,11 @@ export default function ScannerPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto w-full flex flex-col gap-5 min-h-[calc(100vh-3.5rem)]">
+
+      {/* Nama event */}
+      {currentEventName && (
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">{currentEventName}</p>
+      )}
 
       {/* Indikator koneksi */}
       <div className="flex items-center justify-end gap-1.5 shrink-0">
