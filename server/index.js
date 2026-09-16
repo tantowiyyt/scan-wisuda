@@ -5,8 +5,9 @@ import dotenv from 'dotenv'
 import { Server } from 'socket.io'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import db, { getStats, getAllAttendances, getAllInvitationsWithStatus } from './db.js'
+import db, { getStats, getAllAttendances, getAllInvitationsWithStatus, getAllEvents } from './db.js'
 import scanRouter from './routes/scan.js'
+import eventsRouter from './routes/events.js'
 
 dotenv.config()
 
@@ -32,17 +33,29 @@ io.on('connection', (socket) => {
 })
 
 app.use('/api/scan', scanRouter)
+app.use('/api/events', eventsRouter)
+
+function getDefaultEventId() {
+  const events = getAllEvents()
+  return events.length > 0 ? events[0].id : null
+}
 
 app.get('/api/attendances', (req, res) => {
-  res.json({ status: 'success', data: getAllAttendances() })
+  const eventId = req.query.event_id ? parseInt(req.query.event_id) : getDefaultEventId()
+  if (!eventId) return res.json({ status: 'success', data: [] })
+  res.json({ status: 'success', data: getAllAttendances(eventId) })
 })
 
 app.get('/api/stats', (req, res) => {
-  res.json({ status: 'success', data: getStats() })
+  const eventId = req.query.event_id ? parseInt(req.query.event_id) : getDefaultEventId()
+  if (!eventId) return res.json({ status: 'success', data: { total: 0, hadir: 0, belumHadir: 0 } })
+  res.json({ status: 'success', data: getStats(eventId) })
 })
 
 app.get('/api/invitations', (req, res) => {
-  res.json({ status: 'success', data: getAllInvitationsWithStatus() })
+  const eventId = req.query.event_id ? parseInt(req.query.event_id) : getDefaultEventId()
+  if (!eventId) return res.json({ status: 'success', data: [] })
+  res.json({ status: 'success', data: getAllInvitationsWithStatus(eventId) })
 })
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist')
