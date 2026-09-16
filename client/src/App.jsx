@@ -4,6 +4,7 @@ import ScannerPage from './pages/ScannerPage'
 import DaftarMahasiswaPage from './pages/DaftarMahasiswaPage'
 import PilihEventPage from './pages/PilihEventPage'
 import ManagementEventsPage from './pages/ManagementEventsPage'
+import CetakQRPage from './pages/CetakQRPage'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/scan" element={<ScannerPage />} />
         <Route path="/mahasiswa" element={<DaftarMahasiswaPage />} />
         <Route path="/events" element={<ManagementEventsPage />} />
+        <Route path="/events/:id/cetak-qr" element={<CetakQRPage />} />
         <Route path="*" element={<div className="p-8">404 - Halaman tidak ditemukan</div>} />
       </Routes>
     </div>

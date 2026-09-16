@@ -284,6 +284,12 @@ export default function ManagementEventsPage() {
                   }}
                 />
                 <button
+                  onClick={() => navigate(`/events/${event.id}/cetak-qr`)}
+                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-center text-indigo-700 dark:text-indigo-400 text-sm font-medium hover:bg-indigo-100 transition"
+                >
+                  🖨️ Cetak QR
+                </button>
+                <button
                   onClick={() => navigate(`/mahasiswa?event=${event.id}`)}
                   className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-center text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-100 transition"
                 >

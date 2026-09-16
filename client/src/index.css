@@ -27,3 +27,100 @@ html, body, #root {
   100% { transform: scale(1); opacity: 1; }
 }
 .animate-pop-in { animation: pop-in 0.2s ease-out; }
+
+/* ====== A4 Print Layout ====== */
+
+.a4-sheet {
+  width: 210mm;
+  height: 297mm;
+  background: white;
+  margin: 0 auto 8mm;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  page-break-after: always;
+  break-after: page;
+}
+
+.a4-grid {
+  display: grid;
+  box-sizing: border-box;
+}
+
+.label-cell {
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1.5mm;
+  padding: 1.5mm;
+  border: 0.2mm dashed #d0d0d0;
+  background: white;
+}
+
+.label-cell .qr {
+  flex-shrink: 0;
+  display: block;
+}
+
+.label-cell .info {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.label-cell .info .nama {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.label-cell .info .prodi {
+  color: #444;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.label-cell .info .id {
+  color: #888;
+  font-family: monospace;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+
+  nav,
+  header,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  .a4-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+  }
+
+  .label-cell {
+    border: 0.2mm dashed #cccccc;
+  }
+}
