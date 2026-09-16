@@ -1,40 +1,52 @@
-/**
- * useSocket - Custom hook untuk koneksi Socket.IO yang reusable.
- *
- * Contoh penggunaan:
- *   const { status } = useSocket('attendance_update', (data) => {
- *     console.log('Update:', data)
- *   })
- */
-
-import { io } from 'socket.io-client'
 import { useEffect, useRef, useState } from 'react'
+import { io } from 'socket.io-client'
+
+// Socket singleton — dibuat sekali, dipakai semua komponen
+let sharedSocket = null
+
+function getSocket() {
+  if (!sharedSocket) {
+    const url = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+    sharedSocket = io(url, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+    })
+  }
+  return sharedSocket
+}
 
 export default function useSocket(eventName, callback) {
-  const socketRef = useRef(null)
-  const [status, setStatus] = useState('disconnected')
+  const callbackRef = useRef(callback)
+  const [status, setStatus] = useState(
+    sharedSocket?.connected ? 'connected' : 'disconnected'
+  )
 
   useEffect(() => {
-    // Ambil URL server dari env variable, fallback ke localhost
-    const url = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+    callbackRef.current = callback
+  }, [callback])
 
-    // Buat koneksi socket baru
-    socketRef.current = io(url, { transports: ['websocket', 'polling'] })
+  useEffect(() => {
+    const socket = getSocket()
+    setStatus(socket.connected ? 'connected' : 'disconnected')
 
-    // Pantau status koneksi
-    socketRef.current.on('connect', () => setStatus('connected'))
-    socketRef.current.on('disconnect', () => setStatus('disconnected'))
+    const onConnect = () => setStatus('connected')
+    const onDisconnect = () => setStatus('disconnected')
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
 
-    // Dengarkan event yang diminta
-    socketRef.current.on(eventName, callback)
-
-    // Cleanup: lepas listener, putuskan koneksi, kosongkan ref
-    return () => {
-      socketRef.current.off(eventName, callback)
-      socketRef.current.disconnect()
-      socketRef.current = null
+    const handler = (...args) => {
+      if (callbackRef.current) callbackRef.current(...args)
     }
-  }, [eventName, callback])
+    socket.on(eventName, handler)
+
+    return () => {
+      // JANGAN disconnect sharedSocket — biar tetap hidup antar route
+      socket.off(eventName, handler)
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+    }
+  }, [eventName])
 
   return { status }
 }
