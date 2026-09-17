@@ -146,13 +146,25 @@ export function getAllAttendances(eventId, limit = 50) {
   return getAllAttendancesStmt.all(eventId, limit)
 }
 
+// Hitung statistik per keluarga (family-based)
+// Hanya mahasiswa (kategori='mahasiswa') yang dihitung sebagai representasi keluarga
 export function getStats(eventId) {
-  const row = getStatsStmt.get(eventId, eventId)
-  return {
-    total: row.total,
-    hadir: row.hadir,
-    belumHadir: row.total - row.hadir
-  }
+  const totalRow = db.prepare(
+    'SELECT COUNT(DISTINCT family_group) AS total FROM invitations WHERE event_id = ?'
+  ).get(eventId)
+
+  const hadirRow = db.prepare(`
+    SELECT COUNT(DISTINCT i.family_group) AS hadir
+    FROM invitations i
+    JOIN attendances a ON a.qr_code = i.qr_code
+      AND a.event_id = i.event_id
+      AND a.status = 'success'
+    WHERE i.event_id = ? AND i.kategori = 'mahasiswa'
+  `).get(eventId)
+
+  const total = totalRow.total || 0
+  const hadir = hadirRow.hadir || 0
+  return { total, hadir, belumHadir: total - hadir }
 }
 
 export function getAllInvitationsWithStatus(eventId) {

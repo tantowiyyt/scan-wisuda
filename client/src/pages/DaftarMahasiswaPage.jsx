@@ -28,6 +28,7 @@ export default function DaftarMahasiswaPage() {
 
   // Ambil data keluarga + statistik dari server
   const fetchData = useCallback(async () => {
+    if (!currentEventId) return
     setLoading(true)
     setError(null)
     try {
@@ -38,16 +39,17 @@ export default function DaftarMahasiswaPage() {
       if (invRes.status === 'success') setFamilies(invRes.data)
       if (statsRes.status === 'success') setStats(statsRes.data)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Gagal memuat')
     } finally {
       setLoading(false)
     }
-  }, [currentEventId])
+  }, [currentEventId, API_URL])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Socket: refresh data setiap ada scan baru
-  useSocket('attendance_update', () => { fetchData() })
+  // Socket listener stabil — tidak buat fungsi baru tiap render
+  const handleAttendanceUpdate = useCallback(() => { fetchData() }, [fetchData])
+  useSocket('attendance_update', handleAttendanceUpdate)
 
   // Filter berdasarkan search (case-insensitive)
   const filtered = families.filter(f => {
