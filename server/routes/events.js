@@ -8,7 +8,7 @@ import {
   updateEvent,
   deleteEvent,
   createInvitation,
-  getAllInvitationsWithStatus
+  getFamiliesWithStatus
 } from '../db.js'
 
 const router = express.Router()
@@ -102,10 +102,11 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
 
     let imported = 0
     let skipped = 0
+    let families = 0
 
     for (const row of rows) {
-      const qr = String(getVal(row, ['qr_code', 'qrcode', 'qr'])).trim()
-      const nm = String(getVal(row, ['name', 'nama'])).trim()
+      const qrBase = String(getVal(row, ['qr_code', 'qrcode', 'qr'])).trim()
+      const namaMhs = String(getVal(row, ['name', 'nama'])).trim()
       const prodi = String(getVal(row, ['prodi', 'program_studi', 'program studi', 'jurusan']) || '').trim()
       const jenjang = String(getVal(row, ['jenjang', 'program', 'strata']) || '').trim().toUpperCase()
       
@@ -116,33 +117,39 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
         : jenjang.toLowerCase().includes('sarjana terapan') ? 'D4'
         : jenjang || null
 
-      const parent = String(getVal(row, ['parent_name', 'parent', 'orang_tua', 'orangtua']) || '').trim()
-      const quotaVal = parseInt(getVal(row, ['quota', 'kuota'])) || 2
-
-      if (!qr || !nm) {
+      if (!qrBase || !namaMhs) {
         skipped++
         continue
       }
 
-      createInvitation(eventId, qr, nm, prodi || null, jenjangNorm, parent || null, quotaVal)
-      imported++
+      // Generate nama orang tua dari nama lengkap mahasiswa
+      const namaAyah = `Bapak sdr. ${namaMhs}`
+      const namaIbu = `Ibu sdr. ${namaMhs}`
+
+      // Insert 3 rows: mahasiswa (A), ayah (B), ibu (C)
+      createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa')
+      createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah')
+      createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu')
+      
+      imported += 3
+      families++
     }
 
-    res.json({ status: 'success', data: { imported, skipped, total: rows.length } })
+    res.json({ status: 'success', data: { imported, skipped, total: rows.length, families } })
   } catch (err) {
     console.error('Import error:', err)
     res.status(500).json({ status: 'error', message: 'Gagal memproses file Excel' })
   }
 })
 
-// G. GET /api/events/:id/invitations -> list undangan per event
+// G. GET /api/events/:id/invitations -> list undangan per event (kelompok per keluarga)
 router.get('/:id/invitations', (req, res) => {
   const eventId = parseInt(req.params.id)
   const event = getEventById(eventId)
   if (!event) {
     return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
   }
-  res.json({ status: 'success', data: getAllInvitationsWithStatus(eventId) })
+  res.json({ status: 'success', data: getFamiliesWithStatus(eventId) })
 })
 
 export default router

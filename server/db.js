@@ -29,16 +29,19 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS invitations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL,
+    family_group TEXT NOT NULL,
     qr_code TEXT NOT NULL,
     name TEXT NOT NULL,
     prodi TEXT,
     jenjang TEXT,
-    parent_name TEXT,
-    quota INTEGER DEFAULT 2,
+    kategori TEXT NOT NULL CHECK(kategori IN ('mahasiswa', 'ayah', 'ibu', 'wali')),
+    quota INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(event_id, qr_code),
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
   );
+
+  CREATE INDEX IF NOT EXISTS idx_family_group ON invitations(event_id, family_group);
 
   CREATE TABLE IF NOT EXISTS attendances (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,11 +75,12 @@ const getAllInvitationsWithStatusStmt = db.prepare(`
   SELECT 
     i.id,
     i.event_id,
+    i.family_group,
     i.qr_code,
     i.name,
     i.prodi,
     i.jenjang,
-    i.parent_name,
+    i.kategori,
     i.quota,
     i.created_at,
     CASE 
@@ -88,7 +92,7 @@ const getAllInvitationsWithStatusStmt = db.prepare(`
   FROM invitations i
   LEFT JOIN attendances a ON a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success'
   WHERE i.event_id = ?
-  ORDER BY i.qr_code ASC
+  ORDER BY i.family_group ASC, i.kategori ASC
 `)
 
 const getAllEventsStmt = db.prepare('SELECT * FROM events ORDER BY year DESC, id DESC')
@@ -96,14 +100,34 @@ const getEventByIdStmt = db.prepare('SELECT * FROM events WHERE id = ?')
 const createEventStmt = db.prepare('INSERT INTO events (name, year, event_date) VALUES (?, ?, ?)')
 const updateEventStmt = db.prepare('UPDATE events SET name = ?, year = ?, event_date = ? WHERE id = ?')
 const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
-const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, qr_code, name, prodi, jenjang, parent_name, quota) VALUES (?, ?, ?, ?, ?, ?, ?)')
+const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
 const countInvitationsByEventStmt = db.prepare('SELECT COUNT(*) as count FROM invitations WHERE event_id = ?')
 
 const getInvitationsForQRCodesStmt = db.prepare(`
-  SELECT qr_code, name, prodi, jenjang 
+  SELECT family_group, qr_code, name, prodi, jenjang, kategori
   FROM invitations 
-  WHERE event_id = ? 
-  ORDER BY prodi ASC, name ASC
+  WHERE event_id = ? AND (? IS NULL OR kategori = ?)
+  ORDER BY family_group ASC, kategori ASC
+`)
+
+const getFamiliesWithStatusStmt = db.prepare(`
+  SELECT 
+    i.family_group,
+    i.qr_code,
+    i.name,
+    i.prodi,
+    i.jenjang,
+    i.kategori,
+    CASE 
+      WHEN a.id IS NOT NULL AND a.status = 'success' THEN 'hadir'
+      WHEN a.id IS NOT NULL AND a.status = 'duplicate' THEN 'duplicate'
+      ELSE 'belum'
+    END AS status,
+    a.scanned_at
+  FROM invitations i
+  LEFT JOIN attendances a ON a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success'
+  WHERE i.event_id = ?
+  ORDER BY i.family_group ASC, i.kategori ASC
 `)
 
 export function findInvitation(eventId, qrCode) {
@@ -155,16 +179,52 @@ export function deleteEvent(id) {
   return deleteEventStmt.run(id)
 }
 
-export function createInvitation(eventId, qrCode, name, prodi, jenjang, parentName, quota) {
-  return createInvitationStmt.run(eventId, qrCode, name, prodi || null, jenjang || null, parentName || null, quota || 2)
+export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenjang, kategori) {
+  return createInvitationStmt.run(eventId, familyGroup, qrCode, name, prodi || null, jenjang || null, kategori, 1)
 }
 
 export function countInvitationsByEvent(eventId) {
   return countInvitationsByEventStmt.get(eventId).count
 }
 
-export function getInvitationsForQRCodes(eventId) {
-  return getInvitationsForQRCodesStmt.all(eventId)
+export function getInvitationsForQRCodes(eventId, filterKategori = null) {
+  return getInvitationsForQRCodesStmt.all(eventId, filterKategori, filterKategori)
+}
+
+export function getFamiliesWithStatus(eventId) {
+  const rows = getFamiliesWithStatusStmt.all(eventId)
+  const families = {}
+  
+  for (const row of rows) {
+    if (!families[row.family_group]) {
+      families[row.family_group] = {
+        family_group: row.family_group,
+        mahasiswa: null,
+        ayah: null,
+        ibu: null,
+        wali: null,
+        hadir_count: 0,
+        total_count: 0
+      }
+    }
+    
+    const member = {
+      qr_code: row.qr_code,
+      name: row.name,
+      prodi: row.prodi,
+      jenjang: row.jenjang,
+      status: row.status,
+      scanned_at: row.scanned_at
+    }
+    
+    families[row.family_group][row.kategori] = member
+    families[row.family_group].total_count++
+    if (row.status === 'hadir') {
+      families[row.family_group].hadir_count++
+    }
+  }
+  
+  return Object.values(families)
 }
 
 export default db

@@ -57,6 +57,7 @@ html, body, #root {
   padding: 1.5mm;
   border: 0.2mm dashed #d0d0d0;
   background: white;
+  color: #000 !important;
 }
 
 .label-cell .qr {
@@ -72,6 +73,7 @@ html, body, #root {
 
 .label-cell .info .nama {
   font-weight: 700;
+  color: #000;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -80,16 +82,13 @@ html, body, #root {
 }
 
 .label-cell .info .prodi {
-  color: #444;
+  color: #333;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.label-cell .info .id {
-  color: #888;
-  font-family: monospace;
-}
+
 
 @media print {
   @page {

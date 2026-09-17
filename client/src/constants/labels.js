@@ -1,32 +1,27 @@
 /**
- * Konfigurasi ukuran stiker label.
- * SEMUA dalam mm — wajib konsisten supaya presisi 1:1 saat print.
+ * Konfigurasi ukuran stiker label. Semua dalam mm.
  * A4 = 210 × 297 mm
  */
 
 export const LABELS = {
-  // Label 103: 64 × 32 mm | 3 kolom × 8 baris = 24 per A4
-  // Total: 3×64 = 192mm (margin 9mm kiri-kanan)
-  //        8×32 = 256mm (margin 20.5mm atas-bawah)
+  // Label 103: 64 × 32 mm | 3 kolom × 4 baris = 12 per A4
+  // Pitch: 67 × 34 mm (gap: 3 × 2 mm)
   '103': {
     name: 'Label 103',
     width: 64,
     height: 32,
     cols: 3,
-    rows: 8,
-    marginTop: 20.5,
-    marginLeft: 9,
-    gapX: 0,
-    gapY: 0,
+    rows: 4,
+    marginTop: 1,
+    marginLeft: 6,
+    gapX: 3,
+    gapY: 2,
     qrSize: 24,
     fontNama: 9,
     fontProdi: 7,
-    fontId: 6,
   },
 
   // Label 107: 50 × 19 mm | 4 kolom × 14 baris = 56 per A4
-  // Total: 4×50 = 200mm (margin 5mm kiri-kanan)
-  //        14×19 = 266mm (margin 15.5mm atas-bawah)
   '107': {
     name: 'Label 107',
     width: 50,
@@ -40,12 +35,9 @@ export const LABELS = {
     qrSize: 15,
     fontNama: 7,
     fontProdi: 5.5,
-    fontId: 4.5,
   },
 
   // Label 121: 76 × 38 mm | 2 kolom × 7 baris = 14 per A4
-  // Total: 2×76 = 152mm (margin 29mm kiri-kanan)
-  //        7×38 = 266mm (margin 15.5mm atas-bawah)
   '121': {
     name: 'Label 121',
     width: 76,
@@ -59,7 +51,6 @@ export const LABELS = {
     qrSize: 28,
     fontNama: 11,
     fontProdi: 8.5,
-    fontId: 6.5,
   },
 }
 

@@ -63,7 +63,7 @@ export default function CetakQRPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 py-6">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 py-6 print:py-0">
       <div className="no-print max-w-4xl mx-auto px-4 mb-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-3">
           <h2 className="text-lg font-bold dark:text-slate-100 mb-1">
@@ -139,9 +139,7 @@ export default function CetakQRPage() {
                   <div className="prodi" style={{ fontSize: `${cfg.fontProdi}pt` }}>
                     {inv.prodi}
                   </div>
-                  <div className="id" style={{ fontSize: `${cfg.fontId}pt` }}>
-                    {inv.qr_code}
-                  </div>
+
                 </div>
               </div>
             ))}
