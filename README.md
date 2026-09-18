@@ -61,6 +61,97 @@ npm run build    # Build client
 npm run start    # Jalankan server (port 3000)
 ```
 
+## Deploy Production
+
+### Install di Laptop Panitia
+
+- Node.js 20+
+- Git
+- Build tools (python3, build-essential)
+
+### Cara Clone
+
+```bash
+git clone git@github.com:tantowiyyt/scan-wisuda.git
+cd scan-wisuda
+```
+
+### Cara Install & Jalankan
+
+```bash
+npm run install:all
+npm run seed
+npm run build
+npm start
+```
+
+Server berjalan di port 3000.
+
+### Akses dari PC Lain (Pemeriksa)
+
+1. Cek IP LAN laptop panitia:
+   ```bash
+   hostname -I
+   # Contoh output: 192.168.1.100
+   ```
+
+2. Buka firewall port 3000:
+   ```bash
+   sudo ufw allow 3000/tcp
+   ```
+
+3. PC pemeriksa buka browser ke:
+   ```
+   http://<IP-LAN>:3000
+   ```
+
+**Semua PC harus di WiFi/LAN yang sama.**
+
+### Update Aplikasi
+
+```bash
+bash deploy.sh
+# Ctrl+C server lama
+npm start
+```
+
+### Auto-Start dengan systemd (Opsional)
+
+Buat file `/etc/systemd/system/scan-wisuda.service`:
+
+```ini
+[Unit]
+Description=Scan Wisuda Server
+After=network.target
+
+[Service]
+Type=simple
+User=towi
+WorkingDirectory=/home/towi/scan-wisuda
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DB_PATH=./data/wisuda.db
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktifkan:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable scan-wisuda
+sudo systemctl start scan-wisuda
+```
+
+Cek status:
+
+```bash
+sudo systemctl status scan-wisuda
+```
+
 ## API Endpoints
 
 | Method | Endpoint | Body / Response |

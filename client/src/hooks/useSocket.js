@@ -6,7 +6,9 @@ let sharedSocket = null
 
 function getSocket() {
   if (!sharedSocket) {
-    const url = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+    // Di dev: Vite proxy /socket.io → localhost:3000
+    // Di production: server serve client + socket.io di port sama
+    const url = import.meta.env.VITE_SERVER_URL || ''
     sharedSocket = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,

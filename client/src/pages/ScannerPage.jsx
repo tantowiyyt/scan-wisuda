@@ -263,7 +263,7 @@ export default function ScannerPage() {
           <div className="bg-indigo-50/50 dark:bg-slate-800/50 border border-indigo-100 dark:border-slate-700 rounded-xl p-3 text-xs space-y-1 shrink-0 transition-colors">
             <div className="flex justify-between">
               <span className="text-indigo-600 dark:text-indigo-400 font-medium">Server</span>
-              <span className="text-indigo-900/70 dark:text-slate-400">{API_URL || 'localhost:3000'}</span>
+              <span className="text-indigo-900/70 dark:text-slate-400">{window.location.origin}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-indigo-600 dark:text-indigo-400 font-medium">Scanner ID</span>
