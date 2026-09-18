@@ -39,3 +39,11 @@ Thumbs.db
 # Local scripts (path personal)
 start.sh
 *.desktop
+
+# Backup DB (local only)
+server/data/backups/
+
+# Script deploy lokal (path personal)
+backup.sh
+start.sh
+*.desktop
