@@ -66,11 +66,23 @@ export default function DaftarMahasiswaPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto w-full">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-1 dark:text-slate-100">Daftar Mahasiswa Wisuda</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          {currentEventName} • Hadir {stats.hadir} / Total {stats.total} keluarga
-        </p>
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h2 className="text-2xl font-bold dark:text-slate-100">Daftar Mahasiswa Wisuda</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            {currentEventName} • Hadir {stats.hadir} / Total {stats.total} keluarga
+          </p>
+        </div>
+        <a
+          href={`${API_URL}/api/events/${currentEventId}/report.csv`}
+          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
+                     text-white px-4 py-2 rounded-lg font-medium text-sm transition 
+                     shadow-sm"
+          download
+        >
+          <span>📥</span>
+          <span>Download Laporan CSV</span>
+        </a>
       </div>
 
       {/* Search box */}

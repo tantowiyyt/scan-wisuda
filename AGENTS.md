@@ -71,3 +71,6 @@ scan-wisuda/
         └── utils/
             └── sound.js        # Web Audio API beep
 ```
+
+## API Endpoints
+GET /api/events/:id/report.csv — Download laporan kehadiran CSV

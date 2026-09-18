@@ -13,6 +13,94 @@ import {
 
 const router = express.Router()
 
+// Helper: escape CSV value
+function escapeCsv(val) {
+  if (val === null || val === undefined || val === '') return ''
+  const str = String(val)
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"'
+  }
+  return str
+}
+
+// Helper: format timestamp to Indonesia locale
+function fmtTime(iso) {
+  if (!iso) return '-'
+  try {
+    const d = new Date(iso)
+    // Format manual tanpa koma: DD/MM/YYYY HH:MM:SS
+    const pad = (n) => String(n).padStart(2, '0')
+    return [
+      pad(d.getDate()),
+      pad(d.getMonth() + 1),
+      d.getFullYear()
+    ].join('/') + ' ' + [
+      pad(d.getHours()),
+      pad(d.getMinutes()),
+      pad(d.getSeconds())
+    ].join(':')
+  } catch { return iso }
+}
+
+// H. GET /api/events/:id/report.csv -> download laporan kehadiran CSV
+// HARUS didaftarkan SEBELUM route lain yang pakai /:id/*
+router.get('/:id/report.csv', (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id)
+    const event = getEventById(eventId)
+    if (!event) {
+      return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+    }
+
+    const families = getFamiliesWithStatus(eventId)
+
+    const header = [
+      'family_group',
+      'nama_mahasiswa',
+      'prodi',
+      'jenjang',
+      'status_mahasiswa',
+      'scan_mahasiswa',
+      'status_ayah',
+      'scan_ayah',
+      'status_ibu',
+      'scan_ibu',
+      'total_hadir',
+    ].join(',')
+
+    const rows = families.map(f => {
+      const mhs = f.mahasiswa || {}
+      const ayah = f.ayah || {}
+      const ibu = f.ibu || {}
+      return [
+        escapeCsv(f.family_group),
+        escapeCsv(mhs.name),
+        escapeCsv(mhs.prodi),
+        escapeCsv(mhs.jenjang),
+        mhs.status || 'belum',
+        fmtTime(mhs.scanned_at),
+        ayah.status || '-',
+        fmtTime(ayah.scanned_at),
+        ibu.status || '-',
+        fmtTime(ibu.scanned_at),
+        f.hadir_count || 0,
+      ].join(',')
+    })
+
+    const csv = [header, ...rows].join('\n')
+
+    const safeName = event.name.replace(/[^a-zA-Z0-9]/g, '-')
+    const filename = `laporan-${safeName}-${new Date().toISOString().slice(0, 10)}.csv`
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send('\uFEFF' + csv)  // BOM untuk Excel UTF-8
+  } catch (err) {
+    console.error('[report.csv]', err)
+    res.status(500).json({ status: 'error', message: err.message })
+  }
+})
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }
