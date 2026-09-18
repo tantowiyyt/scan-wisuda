@@ -33,3 +33,9 @@ Thumbs.db
 
 # Vite
 .vite/
+# Database di root (folder salah, sudah dihapus)
+/data/
+
+# Local scripts (path personal)
+start.sh
+*.desktop
