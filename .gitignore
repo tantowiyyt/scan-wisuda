@@ -11,6 +11,8 @@ client/dist/
 server/data/*.db
 server/data/*.db-wal
 server/data/*.db-shm
+server/data/backups/
+/data/
 
 # Environment
 .env
@@ -33,17 +35,8 @@ Thumbs.db
 
 # Vite
 .vite/
-# Database di root (folder salah, sudah dihapus)
-/data/
 
 # Local scripts (path personal)
 start.sh
-*.desktop
-
-# Backup DB (local only)
-server/data/backups/
-
-# Script deploy lokal (path personal)
 backup.sh
-start.sh
 *.desktop
