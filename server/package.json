@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch index.js",
+    "dev": "nodemon --ignore data/ --ignore '*.db' --ignore '*.db-wal' --ignore '*.db-shm' index.js",
     "start": "node index.js",
     "seed": "node seed.js"
   },
@@ -17,5 +17,8 @@
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.0",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

@@ -38,7 +38,11 @@ export default function Navbar() {
 
   // Listen ke event kustom 'event-changed'
   useEffect(() => {
-    const handler = () => fetchEvents()
+    const handler = () => {
+      fetchEvents()
+      const id = parseInt(localStorage.getItem('currentEventId'))
+      setCurrentId(isNaN(id) ? null : id)
+    }
     window.addEventListener('event-changed', handler)
     return () => window.removeEventListener('event-changed', handler)
   }, [fetchEvents])
@@ -100,9 +104,9 @@ export default function Navbar() {
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
           <span>{events.find(e => e.id === currentId)?.name || 'Pilih Event'}</span>
           <svg className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
-               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 9l-7 7-7-7" />
+              d="M19 9l-7 7-7-7" />
           </svg>
         </button>
 
@@ -128,8 +132,8 @@ export default function Navbar() {
                             flex items-center justify-between gap-2
                             hover:bg-slate-50 dark:hover:bg-slate-700/50 transition
                             ${ev.id === currentId
-                              ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                              : 'text-slate-700 dark:text-slate-300'}`}
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-700 dark:text-slate-300'}`}
               >
                 <span className="truncate">
                   {ev.name}
