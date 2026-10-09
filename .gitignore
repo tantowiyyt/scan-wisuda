@@ -46,3 +46,9 @@ client/vite.config.js.timestamp-*.mjs
 
 # Test files
 test-*.csv
+
+# Fix/migrasi scripts (one-time)
+fix-*.mjs
+cek-*.mjs
+cleanup-*.mjs
+rename-*.mjs
