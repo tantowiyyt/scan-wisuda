@@ -40,3 +40,9 @@ Thumbs.db
 start.sh
 backup.sh
 *.desktop
+
+# Vite temp files
+client/vite.config.js.timestamp-*.mjs
+
+# Test files
+test-*.csv
