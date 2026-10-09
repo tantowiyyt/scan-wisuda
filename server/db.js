@@ -34,6 +34,8 @@ db.exec(`
     name TEXT NOT NULL,
     prodi TEXT,
     jenjang TEXT,
+    nim TEXT,
+    kelas TEXT,
     kategori TEXT NOT NULL CHECK(kategori IN ('mahasiswa', 'ayah', 'ibu', 'wali')),
     quota INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -80,6 +82,8 @@ const getAllInvitationsWithStatusStmt = db.prepare(`
     i.name,
     i.prodi,
     i.jenjang,
+    i.nim,
+    i.kelas,
     i.kategori,
     i.quota,
     i.created_at,
@@ -100,11 +104,11 @@ const getEventByIdStmt = db.prepare('SELECT * FROM events WHERE id = ?')
 const createEventStmt = db.prepare('INSERT INTO events (name, year, event_date) VALUES (?, ?, ?)')
 const updateEventStmt = db.prepare('UPDATE events SET name = ?, year = ?, event_date = ? WHERE id = ?')
 const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
-const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, nim, kelas, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
 const countInvitationsByEventStmt = db.prepare('SELECT COUNT(*) as count FROM invitations WHERE event_id = ?')
 
 const getInvitationsForQRCodesStmt = db.prepare(`
-  SELECT family_group, qr_code, name, prodi, jenjang, kategori
+  SELECT family_group, qr_code, name, prodi, jenjang, nim, kelas, kategori
   FROM invitations 
   WHERE event_id = ? AND (? IS NULL OR kategori = ?)
   ORDER BY family_group ASC, kategori ASC
@@ -117,6 +121,8 @@ const getFamiliesWithStatusStmt = db.prepare(`
     i.name,
     i.prodi,
     i.jenjang,
+    i.nim,
+    i.kelas,
     i.kategori,
     CASE 
       WHEN a.id IS NOT NULL AND a.status = 'success' THEN 'hadir'
@@ -191,8 +197,8 @@ export function deleteEvent(id) {
   return deleteEventStmt.run(id)
 }
 
-export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenjang, kategori) {
-  return createInvitationStmt.run(eventId, familyGroup, qrCode, name, prodi || null, jenjang || null, kategori, 1)
+export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenjang, kategori, nim, kelas) {
+  return createInvitationStmt.run(eventId, familyGroup, qrCode, name, prodi || null, jenjang || null, nim || null, kelas || null, kategori, 1)
 }
 
 export function countInvitationsByEvent(eventId) {
@@ -225,6 +231,8 @@ export function getFamiliesWithStatus(eventId) {
       name: row.name,
       prodi: row.prodi,
       jenjang: row.jenjang,
+      nim: row.nim,
+      kelas: row.kelas,
       status: row.status,
       scanned_at: row.scanned_at
     }

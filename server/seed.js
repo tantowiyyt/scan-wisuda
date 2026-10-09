@@ -3,15 +3,15 @@ import { createEvent, createInvitation, getAllEvents } from './db.js'
 
 // Wisuda 2026 (3 families)
 const MAHASISWA_2026 = [
-  { qrBase: 'WSD-001', name: 'Michael Arsil', prodi: 'D3 Teknik Informatika', jenjang: 'D3' },
-  { qrBase: 'WSD-002', name: 'Siti Nurhaliza', prodi: 'D4 Rekayasa Perangkat Lunak', jenjang: 'D4' },
-  { qrBase: 'WSD-003', name: 'Budi Setiawan', prodi: 'D3 Teknik Mesin', jenjang: 'D3' }
+  { qrBase: 'WSD-001', name: 'Michael Arsil', prodi: 'D3 Teknik Informatika', jenjang: 'D3', nim: '2201001', kelas: 'TI-3A' },
+  { qrBase: 'WSD-002', name: 'Siti Nurhaliza', prodi: 'D4 Rekayasa Perangkat Lunak', jenjang: 'D4', nim: '2202002', kelas: 'RPL-4B' },
+  { qrBase: 'WSD-003', name: 'Budi Setiawan', prodi: 'D3 Teknik Mesin', jenjang: 'D3', nim: '2203003', kelas: 'TM-3A' }
 ]
 
 // Wisuda 2027 (2 families)
 const MAHASISWA_2027 = [
-  { qrBase: 'WSD-001', name: 'Kartika Dewi Lestari', prodi: 'D4 Rekayasa Perangkat Lunak', jenjang: 'D4' },
-  { qrBase: 'WSD-002', name: 'Luthfi Hakim', prodi: 'D3 Teknik Informatika', jenjang: 'D3' }
+  { qrBase: 'WSD-001', name: 'Kartika Dewi Lestari', prodi: 'D4 Rekayasa Perangkat Lunak', jenjang: 'D4', nim: '2204004', kelas: 'RPL-4A' },
+  { qrBase: 'WSD-002', name: 'Luthfi Hakim', prodi: 'D3 Teknik Informatika', jenjang: 'D3', nim: '2205005', kelas: 'TI-3B' }
 ]
 
 // Wisuda 2028 (kosong - untuk test import Excel)
@@ -44,13 +44,13 @@ const event2028 = allEvents.find(e => e.year === 2028)
 function seedFamilies(event, mahasiswaList) {
   if (!event) return
   for (const mhs of mahasiswaList) {
-    const { qrBase, name, prodi, jenjang } = mhs
+    const { qrBase, name, prodi, jenjang, nim, kelas } = mhs
     const namaAyah = `Bapak sdr. ${name}`
     const namaIbu = `Ibu sdr. ${name}`
 
-    createInvitation(event.id, qrBase, `${qrBase}-A`, name, prodi, jenjang, 'mahasiswa')
-    createInvitation(event.id, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah')
-    createInvitation(event.id, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu')
+    createInvitation(event.id, qrBase, `${qrBase}-A`, name, prodi, jenjang, 'mahasiswa', nim, kelas)
+    createInvitation(event.id, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah', null, null)
+    createInvitation(event.id, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu', null, null)
   }
   console.log(`Seed selesai: ${mahasiswaList.length * 3} undangan (${mahasiswaList.length} families) untuk ${event.name}`)
 }

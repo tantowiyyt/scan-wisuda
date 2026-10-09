@@ -8,7 +8,9 @@ import {
   updateEvent,
   deleteEvent,
   createInvitation,
-  getFamiliesWithStatus
+  getFamiliesWithStatus,
+  countInvitationsByEvent,
+  getInvitationsForQRCodes
 } from '../db.js'
 
 const router = express.Router()
@@ -56,6 +58,8 @@ router.get('/:id/report.csv', (req, res) => {
 
     const header = [
       'family_group',
+      'nim',
+      'kelas',
       'nama_mahasiswa',
       'prodi',
       'jenjang',
@@ -74,6 +78,8 @@ router.get('/:id/report.csv', (req, res) => {
       const ibu = f.ibu || {}
       return [
         escapeCsv(f.family_group),
+        escapeCsv(mhs.nim),
+        escapeCsv(mhs.kelas),
         escapeCsv(mhs.name),
         escapeCsv(mhs.prodi),
         escapeCsv(mhs.jenjang),
@@ -197,6 +203,8 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
       const namaMhs = String(getVal(row, ['name', 'nama'])).trim()
       const prodi = String(getVal(row, ['prodi', 'program_studi', 'program studi', 'jurusan']) || '').trim()
       const jenjang = String(getVal(row, ['jenjang', 'program', 'strata']) || '').trim().toUpperCase()
+      const nim = String(getVal(row, ['nim', 'NIM', 'nomor_induk']) || '').trim()
+      const kelas = String(getVal(row, ['kelas', 'class', 'rombel']) || '').trim()
       
       // Normalisasi jenjang
       const jenjangNorm = jenjang.match(/^D\d$/) ? jenjang 
@@ -215,9 +223,9 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
       const namaIbu = `Ibu sdr. ${namaMhs}`
 
       // Insert 3 rows: mahasiswa (A), ayah (B), ibu (C)
-      createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa')
-      createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah')
-      createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu')
+      createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa', nim || null, kelas || null)
+      createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah', null, null)
+      createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu', null, null)
       
       imported += 3
       families++
@@ -238,6 +246,17 @@ router.get('/:id/invitations', (req, res) => {
     return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
   }
   res.json({ status: 'success', data: getFamiliesWithStatus(eventId) })
+})
+
+// H. GET /api/events/:id/qrcodes/preview -> data untuk cetak QR (include nim, kelas)
+router.get('/:id/qrcodes/preview', (req, res) => {
+  const eventId = parseInt(req.params.id)
+  const event = getEventById(eventId)
+  if (!event) {
+    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+  }
+  const data = getInvitationsForQRCodes(eventId)
+  res.json({ status: 'success', data })
 })
 
 export default router

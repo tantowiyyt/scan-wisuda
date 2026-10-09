@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useDarkMode from '../hooks/useDarkMode'
 
@@ -15,13 +15,33 @@ export default function Navbar() {
   )
   const dropdownRef = useRef(null)
 
-  // Ambil daftar events saat mount
+  // Fetch events - useCallback untuk dipakai di multiple useEffect
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/events`)
+      const j = await res.json()
+      if (j.status === 'success') setEvents(j.data)
+    } catch (err) {
+      console.error('[navbar]', err)
+    }
+  }, [API_URL])
+
+  // Fetch saat mount
   useEffect(() => {
-    fetch(`${API_URL}/api/events`)
-      .then(r => r.json())
-      .then(j => { if (j.status === 'success') setEvents(j.data) })
-      .catch(err => console.error('[navbar]', err))
-  }, [])
+    fetchEvents()
+  }, [fetchEvents])
+
+  // Fetch ulang setiap kali dropdown dibuka
+  useEffect(() => {
+    if (open) fetchEvents()
+  }, [open, fetchEvents])
+
+  // Listen ke event kustom 'event-changed'
+  useEffect(() => {
+    const handler = () => fetchEvents()
+    window.addEventListener('event-changed', handler)
+    return () => window.removeEventListener('event-changed', handler)
+  }, [fetchEvents])
 
   // Close dropdown saat klik di luar
   useEffect(() => {
@@ -39,6 +59,7 @@ export default function Navbar() {
     localStorage.setItem('currentEventName', ev.name)
     setCurrentId(ev.id)
     setOpen(false)
+    window.dispatchEvent(new CustomEvent('event-changed'))
     window.location.reload()
   }
 

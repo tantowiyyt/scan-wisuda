@@ -147,6 +147,8 @@ export default function DaftarMahasiswaPage() {
                     <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
                       {f.mahasiswa?.prodi}
                       {f.mahasiswa?.jenjang && ` • ${f.mahasiswa.jenjang}`}
+                      {f.mahasiswa?.nim && ` • ${f.mahasiswa.nim}`}
+                      {f.mahasiswa?.kelas && ` • ${f.mahasiswa.kelas}`}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">

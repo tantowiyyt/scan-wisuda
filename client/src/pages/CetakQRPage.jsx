@@ -136,10 +136,26 @@ export default function CetakQRPage() {
                   <div className="nama" style={{ fontSize: `${cfg.fontNama}pt` }}>
                     {inv.name}
                   </div>
-                  <div className="prodi" style={{ fontSize: `${cfg.fontProdi}pt` }}>
-                    {inv.prodi}
-                  </div>
-
+                  
+                  {inv.kategori === 'mahasiswa' ? (
+                    <>
+                      <div className="prodi" style={{ fontSize: `${cfg.fontProdi}pt` }}>
+                        {inv.prodi}{inv.jenjang ? ` • ${inv.jenjang}` : ''}
+                      </div>
+                      {(inv.nim || inv.kelas) && (
+                        <div className="nim" style={{ 
+                          fontSize: `${cfg.fontProdi - 1}pt`, 
+                          color: '#666' 
+                        }}>
+                          {inv.nim}{inv.nim && inv.kelas ? ' • ' : ''}{inv.kelas}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="prodi" style={{ fontSize: `${cfg.fontProdi}pt` }}>
+                      {inv.kategori === 'ayah' ? 'Ayah' : inv.kategori === 'ibu' ? 'Ibu' : 'Wali'}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
