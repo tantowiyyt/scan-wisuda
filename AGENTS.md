@@ -38,6 +38,7 @@ npm start       # Jalankan server production (port 3000)
 - **Nama perangkat**: `scanner_id` via localStorage, wajib diisi sekali di halaman Scan (modal), dikirim di setiap scan. Kotak hasil & bunyi hanya untuk scan perangkat sendiri (dari response HTTP); socket hanya memperbarui daftar & statistik
 - **Halaman awal**: admin → `/dashboard`; operator → `/scan` jika event sudah dipilih, selain itu `/pilih-event`
 - **Masuk kembali**: tamu boleh keluar-masuk membawa undangan; scan ulang disimpan sebagai status `duplicate` tapi ditampilkan "MASUK KEMBALI" (biru, bunyi sukses), bukan peringatan. Tidak ada scan keluar
+- **Mode offline** (`client/src/offline/offlineStore.js` + `client/public/sw.js`): halaman Scan menyimpan salinan daftar undangan (`GET /api/events/:id/offline-data`, tiap 5 menit). Saat server tak terjangkau (network error / 502-504), scan divalidasi dari salinan itu dan masuk antrean localStorage, lalu dikirim otomatis (`offline: true`, jam asli `scanned_at`, `client_scan_id` unik agar tidak dobel). Scan paling awal selalu jadi `success`. Service Worker (hanya build production) menyimpan file website; `/api` & `/socket.io` tidak pernah di-cache. Logout menghapus salinan data
 - **Scan tidak valid** dicatat di tabel `scan_errors` (dipakai dashboard; ikut terhapus saat reset presensi)
 - **Jangan commit file `.env`** — gunakan `.env.example` sebagai template
 
@@ -105,7 +106,7 @@ scan-wisuda/
 | POST | `/api/auth/login` | `{ password }` → set cookie sesi, balas `{ role }` (5x salah → kunci 1 menit) |
 | POST | `/api/auth/logout` | Hapus sesi |
 | GET | `/api/auth/me` | Role user saat ini atau `null` |
-| POST | `/api/scan` | `{ qr_code, scanner_id, event_id }` → `success` (hadir) / `duplicate` (masuk kembali, normal) / `not_found` |
+| POST | `/api/scan` | `{ qr_code, scanner_id, event_id, client_scan_id?, scanned_at?, offline? }` → `success` (hadir) / `duplicate` (masuk kembali, normal) / `not_found` |
 | GET | `/api/attendances?event_id=` | Kehadiran terakhir (status success) |
 | GET | `/api/stats?event_id=` | `{ total, hadir, belumHadir }` per keluarga |
 | GET | `/api/invitations?event_id=` | Semua undangan + status |
@@ -116,6 +117,7 @@ scan-wisuda/
 | GET | `/api/events/:id/report.csv` | Laporan kehadiran CSV |
 | GET | `/api/events/:id/dashboard` | Ringkasan admin: keluarga, per kategori, total scan, timeline 15 menit, perangkat, scan bermasalah |
 | DELETE | `/api/events/:id/attendances` | Reset presensi, body `{ password }` = `RESET_PASSWORD` (5x salah → kunci 1 menit) |
+| GET | `/api/events/:id/offline-data` | Undangan ringkas + QR sudah hadir, untuk validasi offline (operator & admin) |
 | GET | `/api/events/:id/qrcodes/preview` | Data untuk cetak QR |
 | GET | `/api/events/:id/qrcodes/zip` | Semua QR PNG dalam ZIP |
 | GET | `/api/events/:id/qrcodes/csv` | CSV untuk mail merge |

@@ -72,9 +72,30 @@ db.exec(`
   );
 `)
 
+// Migrasi: client_scan_id = ID unik scan dari perangkat, agar scan offline yang
+// terkirim ulang (mis. koneksi putus saat sinkron) tidak tercatat dua kali
+for (const table of ['attendances', 'scan_errors']) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name)
+  if (!cols.includes('client_scan_id')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN client_scan_id TEXT`)
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_client_scan ON ${table}(client_scan_id) WHERE client_scan_id IS NOT NULL`)
+}
+
 const findInvitationStmt = db.prepare('SELECT * FROM invitations WHERE event_id = ? AND qr_code = ?')
-const getAttendanceByQrStmt = db.prepare('SELECT * FROM attendances WHERE event_id = ? AND qr_code = ? ORDER BY scanned_at DESC LIMIT 1')
-const recordAttendanceStmt = db.prepare('INSERT INTO attendances (event_id, qr_code, name, scanner_id, status) VALUES (?, ?, ?, ?, ?)')
+const insertScanStmt = db.prepare(`
+  INSERT INTO attendances (event_id, qr_code, name, scanner_id, status, scanned_at, client_scan_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`)
+const getSuccessByQrStmt = db.prepare(`SELECT * FROM attendances WHERE event_id = ? AND qr_code = ? AND status = 'success' ORDER BY id LIMIT 1`)
+const demoteToDuplicateStmt = db.prepare(`UPDATE attendances SET status = 'duplicate' WHERE id = ?`)
+const getPreviousScanStmt = db.prepare(`
+  SELECT * FROM attendances
+  WHERE event_id = ? AND qr_code = ? AND id != ? AND scanned_at <= ?
+  ORDER BY scanned_at DESC, id DESC LIMIT 1
+`)
+const findAttendanceByClientIdStmt = db.prepare('SELECT * FROM attendances WHERE client_scan_id = ?')
+const findScanErrorByClientIdStmt = db.prepare('SELECT * FROM scan_errors WHERE client_scan_id = ?')
 // Kehadiran + info undangan; data mahasiswa diambil dari anggota keluarga
 // kategori 'mahasiswa' agar scan orang tua juga tahu "orang tua dari siapa"
 const getAllAttendancesStmt = db.prepare(`
@@ -144,7 +165,7 @@ const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
 const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, nim, kelas, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
 const deleteAttendancesByEventStmt = db.prepare('DELETE FROM attendances WHERE event_id = ?')
 const deleteScanErrorsByEventStmt = db.prepare('DELETE FROM scan_errors WHERE event_id = ?')
-const recordScanErrorStmt = db.prepare('INSERT INTO scan_errors (event_id, qr_code, scanner_id) VALUES (?, ?, ?)')
+const recordScanErrorStmt = db.prepare('INSERT INTO scan_errors (event_id, qr_code, scanner_id, scanned_at, client_scan_id) VALUES (?, ?, ?, ?, ?)')
 
 // Daftar event + ringkasan keluarga terdaftar & hadir (untuk kartu Pilih Event)
 const getEventsWithStatsStmt = db.prepare(`
@@ -240,12 +261,48 @@ export function findInvitation(eventId, qrCode) {
   return findInvitationStmt.get(eventId, qrCode)
 }
 
-export function getAttendanceByQr(eventId, qrCode) {
-  return getAttendanceByQrStmt.get(eventId, qrCode)
+/**
+ * Catat satu scan undangan valid. scannedAt format SQLite UTC ('YYYY-MM-DD HH:MM:SS').
+ * Scan dengan waktu PALING AWAL selalu jadi 'success' (masuk pertama) — penting untuk
+ * scan offline yang baru terkirim setelah perangkat lain sudah mencatat QR yang sama.
+ */
+export const recordScan = db.transaction((eventId, inv, scannerId, scannedAt, clientScanId) => {
+  const first = getSuccessByQrStmt.get(eventId, inv.qr_code)
+  let status = 'success'
+  if (first) {
+    if (scannedAt < first.scanned_at) {
+      demoteToDuplicateStmt.run(first.id)
+    } else {
+      status = 'duplicate'
+    }
+  }
+  const { lastInsertRowid } = insertScanStmt.run(eventId, inv.qr_code, inv.name, scannerId, status, scannedAt, clientScanId)
+  const previous = getPreviousScanStmt.get(eventId, inv.qr_code, lastInsertRowid, scannedAt)
+  return { status, previous }
+})
+
+export function findScanByClientId(clientScanId) {
+  if (!clientScanId) return null
+  const att = findAttendanceByClientIdStmt.get(clientScanId)
+  if (att) return { type: 'attendance', row: att }
+  const err = findScanErrorByClientIdStmt.get(clientScanId)
+  if (err) return { type: 'error', row: err }
+  return null
 }
 
-export function recordAttendance(eventId, qrCode, name, scannerId, status) {
-  return recordAttendanceStmt.run(eventId, qrCode, name, scannerId, status)
+// Data ringkas untuk validasi scan di perangkat saat offline
+export function getOfflineData(eventId) {
+  return {
+    invitations: db.prepare(`
+      SELECT qr_code, name, kategori, family_group, nim, kelas, prodi, jenjang
+      FROM invitations WHERE event_id = ?
+    `).all(eventId),
+    scanned: db.prepare(`
+      SELECT qr_code, strftime('%Y-%m-%dT%H:%M:%SZ', MIN(scanned_at)) AS first_scanned_at
+      FROM attendances WHERE event_id = ? AND status = 'success'
+      GROUP BY qr_code
+    `).all(eventId),
+  }
 }
 
 // Detail lengkap untuk tampilan hasil scan: info mahasiswa + status tiap anggota keluarga
@@ -326,8 +383,8 @@ export const deleteAttendancesByEvent = db.transaction((eventId) => {
   return deleteAttendancesByEventStmt.run(eventId).changes
 })
 
-export function recordScanError(eventId, qrCode, scannerId) {
-  return recordScanErrorStmt.run(eventId, qrCode, scannerId)
+export function recordScanError(eventId, qrCode, scannerId, scannedAt, clientScanId) {
+  return recordScanErrorStmt.run(eventId, qrCode, scannerId, scannedAt, clientScanId || null)
 }
 
 export function getEventsWithStats() {

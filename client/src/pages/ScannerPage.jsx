@@ -9,9 +9,25 @@ import useScanner from '../hooks/useScanner'
 import useSocket from '../hooks/useSocket'
 import { playSuccess, playError } from '../utils/sound'
 import DeviceNameModal, { getDeviceName } from '../components/DeviceNameModal'
+import {
+  newScanId, OfflineError, isUnreachableStatus,
+  loadEventCache, refreshEventCache, markScanned, clearScanned, buildOfflineResult,
+  getQueue, enqueue, flushQueue, QUEUE_EVENT, SYNCED_EVENT,
+} from '../offline/offlineStore'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 const MAX_RECENT = 20
+const CACHE_REFRESH_MS = 5 * 60 * 1000 // perbarui salinan daftar undangan tiap 5 menit
+const FLUSH_INTERVAL_MS = 15 * 1000    // coba kirim antrean offline tiap 15 detik
+
+// Tambah ke daftar Kehadiran Terakhir: scan offline yang baru tersinkron (client_scan_id
+// sama) menggantikan entri lokalnya, lalu urutkan dari yang terbaru
+function addRecent(list, item) {
+  const rest = item.client_scan_id ? list.filter(a => a.client_scan_id !== item.client_scan_id) : list
+  return [item, ...rest]
+    .sort((a, b) => (b.scanned_at || '').localeCompare(a.scanned_at || ''))
+    .slice(0, MAX_RECENT)
+}
 
 // Label + warna badge per kategori tamu
 const KATEGORI = {
@@ -85,7 +101,14 @@ function ScanResultCard({ result }) {
         <div className={`text-3xl font-bold tracking-wide ${t.title}`}>
           {result.status === 'success' ? 'HADIR' : 'MASUK KEMBALI'}
         </div>
-        <KategoriBadge kategori={result.kategori} className="ml-auto text-sm px-3 py-1" />
+        <div className="ml-auto flex items-center gap-2">
+          {result.offline && (
+            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+              📴 Offline · menunggu sinkron
+            </span>
+          )}
+          <KategoriBadge kategori={result.kategori} className="text-sm px-3 py-1" />
+        </div>
       </div>
 
       {/* Nama */}
@@ -175,6 +198,14 @@ export default function ScannerPage() {
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
   const [manualInput, setManualInput] = useState('')
   const [lastUpdateTime, setLastUpdateTime] = useState(null)
+  // Mode offline
+  const [queueCount, setQueueCount] = useState(() => getQueue().length)
+  const [offline, setOffline] = useState(false)
+  const [syncMsg, setSyncMsg] = useState(null)
+  const [cacheInfo, setCacheInfo] = useState(() => {
+    const c = currentEventId && loadEventCache(currentEventId)
+    return c ? { savedAt: c.savedAt, count: Object.keys(c.invitations).length } : null
+  })
 
   // Redirect ke pilih event jika belum ada event yang dipilih
   useEffect(() => {
@@ -210,6 +241,49 @@ export default function ScannerPage() {
     fetchInitial()
   }, [fetchStats, currentEventId])
 
+  // Salinan daftar undangan untuk validasi offline: saat dibuka & tiap 5 menit
+  const refreshCache = useCallback(async () => {
+    if (!currentEventId) return
+    try {
+      const c = await refreshEventCache(currentEventId)
+      setCacheInfo({ savedAt: c.savedAt, count: Object.keys(c.invitations).length })
+      setOffline(false)
+    } catch (err) {
+      if (err instanceof OfflineError || err instanceof TypeError) setOffline(true)
+    }
+  }, [currentEventId])
+
+  // Kirim antrean scan offline; tandai online lagi kalau berhasil terkirim
+  const syncQueue = useCallback(async () => {
+    if (getQueue().length === 0) return
+    const { offline: stillOffline } = await flushQueue()
+    setOffline(stillOffline)
+    if (!stillOffline) fetchStats()
+  }, [fetchStats])
+
+  useEffect(() => {
+    refreshCache()
+    syncQueue()
+    const cacheTimer = setInterval(refreshCache, CACHE_REFRESH_MS)
+    const flushTimer = setInterval(syncQueue, FLUSH_INTERVAL_MS)
+    const onOnline = () => { syncQueue(); refreshCache() }
+    const onQueue = (e) => setQueueCount(e.detail)
+    const onSynced = (e) => {
+      setSyncMsg(`✓ ${e.detail} scan offline berhasil dikirim ke server`)
+      setTimeout(() => setSyncMsg(null), 6000)
+    }
+    window.addEventListener('online', onOnline)
+    window.addEventListener(QUEUE_EVENT, onQueue)
+    window.addEventListener(SYNCED_EVENT, onSynced)
+    return () => {
+      clearInterval(cacheTimer)
+      clearInterval(flushTimer)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener(QUEUE_EVENT, onQueue)
+      window.removeEventListener(SYNCED_EVENT, onSynced)
+    }
+  }, [refreshCache, syncQueue])
+
   // Socket: dengarkan event attendance_update dari server
   const { status: connectionStatus } = useSocket('attendance_update', useCallback((data) => {
     // Server broadcast ke semua client — abaikan scan dari event lain
@@ -217,11 +291,21 @@ export default function ScannerPage() {
     // Kotak hasil & bunyi hanya untuk scan perangkat ini (lewat response handleScan).
     // Socket hanya memperbarui daftar & statistik dari semua perangkat.
     setLastUpdateTime(new Date())
+    // Jaga salinan offline tetap tahu siapa yang sudah hadir (termasuk dari perangkat lain)
+    markScanned(currentEventId, data.qr_code, data.first_scanned_at)
     if (data.status === 'success') {
-      setAttendances((prev) => [data, ...prev].slice(0, MAX_RECENT))
+      setAttendances((prev) => addRecent(prev, data))
     }
     fetchStats()
   }, [fetchStats, currentEventId]))
+
+  // Socket tersambung lagi → kirim antrean & perbarui salinan daftar
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      syncQueue()
+      refreshCache()
+    }
+  }, [connectionStatus, syncQueue, refreshCache])
 
   // Socket: presensi event ini di-reset dari PC lain
   useSocket('attendance_reset', useCallback((data) => {
@@ -229,6 +313,7 @@ export default function ScannerPage() {
     setLastResult(null)
     setAttendances([])
     setLastUpdateTime(new Date())
+    clearScanned(currentEventId)
     fetchStats()
   }, [fetchStats, currentEventId]))
 
@@ -236,16 +321,26 @@ export default function ScannerPage() {
   async function handleScan(code) {
     // Belum ada nama perangkat: modal sedang tampil, abaikan scan
     if (!scannerId) return
+    const scan = {
+      client_scan_id: newScanId(),
+      qr_code: code,
+      scanner_id: scannerId,
+      event_id: parseInt(currentEventId),
+      scanned_at: new Date().toISOString(),
+    }
     try {
-      const res = await fetch(`${API_URL}/api/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qr_code: code,
-          scanner_id: scannerId,
-          event_id: parseInt(currentEventId)
+      let res
+      try {
+        res = await fetch(`${API_URL}/api/scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scan)
         })
-      })
+      } catch {
+        throw new OfflineError()
+      }
+      if (isUnreachableStatus(res.status)) throw new OfflineError()
+      setOffline(false)
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         // Error server (500, dsb) — BUKAN berarti QR tidak valid
@@ -259,13 +354,39 @@ export default function ScannerPage() {
         return
       }
       setLastResult(json.data)
+      markScanned(currentEventId, code, json.data.first_scanned_at)
       // Hadir & masuk kembali sama-sama normal → bunyi sukses
       playSuccess()
+      // Sekalian kirim sisa antrean offline kalau ada
+      if (getQueue().length > 0) syncQueue()
     } catch (err) {
-      // Jaringan putus / server mati — tamu jangan ditolak, minta scan ulang
-      console.error(err)
-      setLastResult({ status: 'error', qr_code: code, message: 'Tidak dapat terhubung ke server. Periksa koneksi internet.', scanned_at: new Date().toISOString() })
-      playError()
+      if (!(err instanceof OfflineError)) {
+        console.error(err)
+        setLastResult({ status: 'error', qr_code: code, message: 'Terjadi kesalahan saat memproses scan.', scanned_at: scan.scanned_at })
+        playError()
+        return
+      }
+      // OFFLINE: simpan ke antrean, validasi pakai salinan daftar undangan di perangkat
+      setOffline(true)
+      enqueue(scan)
+      const cache = loadEventCache(currentEventId)
+      if (!cache) {
+        setLastResult({ status: 'queued', qr_code: code, scanned_at: scan.scanned_at })
+        playError()
+        return
+      }
+      const result = buildOfflineResult(cache, scan)
+      if (!result) {
+        setLastResult({ status: 'not_found', qr_code: code, scanned_at: scan.scanned_at, offline: true })
+        playError()
+        return
+      }
+      markScanned(currentEventId, code, result.first_scanned_at)
+      setLastResult(result)
+      if (result.status === 'success') {
+        setAttendances(prev => addRecent(prev, { ...result, client_scan_id: scan.client_scan_id }))
+      }
+      playSuccess()
     }
   }
 
@@ -288,6 +409,26 @@ export default function ScannerPage() {
           onClose={() => setEditDevice(false)}
         />
       )}
+
+      {/* Banner mode offline / sinkronisasi */}
+      {offline ? (
+        <div className="shrink-0 -mb-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50 px-4 py-2.5 flex items-center gap-3 text-sm text-amber-900 dark:text-amber-200">
+          <span className="text-lg">📴</span>
+          <span className="flex-1">
+            <b>OFFLINE</b> — scan tetap berjalan & disimpan di perangkat ini.
+            {queueCount > 0 && <> <b>{queueCount} scan</b> menunggu dikirim otomatis saat koneksi kembali.</>}
+            {' '}<span className="opacity-80">Jangan hapus data browser.</span>
+          </span>
+        </div>
+      ) : queueCount > 0 ? (
+        <div className="shrink-0 -mb-2 rounded-xl border border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/50 px-4 py-2.5 text-sm text-sky-900 dark:text-sky-200">
+          ⟳ Mengirim <b>{queueCount} scan</b> tersimpan ke server...
+        </div>
+      ) : syncMsg ? (
+        <div className="shrink-0 -mb-2 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 px-4 py-2.5 text-sm text-emerald-800 dark:text-emerald-200">
+          {syncMsg}
+        </div>
+      ) : null}
 
       {/* Header: nama event + koneksi */}
       <div className="flex items-center justify-between gap-4 shrink-0">
@@ -394,6 +535,11 @@ export default function ScannerPage() {
               </div>
               <div className="text-3xl font-bold text-rose-700 dark:text-rose-300">QR TIDAK VALID</div>
               <div className="text-lg text-rose-600 dark:text-rose-400 font-mono mt-2">{lastResult.qr_code}</div>
+              {lastResult.offline && (
+                <div className="mt-2 text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                  📴 Dicek offline — dipastikan ulang saat online
+                </div>
+              )}
               <div className="text-sm text-rose-500 dark:text-rose-400 mt-3 text-center max-w-md">
                 Kode tidak terdaftar di <b>{currentEventName}</b>. Pastikan undangan untuk event yang benar,
                 atau cek kode secara manual.
@@ -417,6 +563,21 @@ export default function ScannerPage() {
                 Silakan scan ulang setelah koneksi kembali.
               </div>
               <div className="text-xs text-slate-400 mt-2">{fmtTime(lastResult.scanned_at)}</div>
+            </div>
+          )}
+
+          {cfg === 'queued' && (
+            <div
+              key={lastResult.scanned_at}
+              className="flex-1 rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-6 min-h-0 animate-pop-in transition-colors bg-amber-50 dark:bg-amber-950/30 border-amber-400 dark:border-amber-700"
+            >
+              <div className="w-16 h-16 rounded-full bg-amber-500 text-white flex items-center justify-center mb-3 text-3xl">📴</div>
+              <div className="text-3xl font-bold text-amber-800 dark:text-amber-200">TERSIMPAN (OFFLINE)</div>
+              <div className="text-lg font-mono text-amber-700 dark:text-amber-300 mt-2">{lastResult.qr_code}</div>
+              <div className="text-sm text-amber-700 dark:text-amber-300 mt-3 text-center max-w-md">
+                Data undangan belum tersimpan di perangkat ini, jadi kode <b>belum bisa diperiksa</b>.
+                Scan disimpan dan diverifikasi otomatis saat online. Periksa undangan fisik tamu.
+              </div>
             </div>
           )}
 
@@ -482,6 +643,12 @@ export default function ScannerPage() {
             <div className="flex justify-between">
               <span className="text-indigo-600 dark:text-indigo-400 font-medium">Perangkat</span>
               <span className="text-indigo-900/70 dark:text-slate-400">{scannerId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Data offline</span>
+              <span className="text-indigo-900/70 dark:text-slate-400">
+                {cacheInfo ? `${cacheInfo.count} undangan · ${new Date(cacheInfo.savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Belum tersimpan'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-indigo-600 dark:text-indigo-400 font-medium">Terakhir update</span>

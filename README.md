@@ -5,6 +5,7 @@ Sistem absensi digital untuk wisuda menggunakan QR code scanner (HID keyboard mo
 ## Fitur Utama
 
 - **Scan HID Keyboard** — Kompatibel dengan USB barcode scanner mode keyboard, tanpa driver khusus
+- **Mode Offline** — Internet putus? Scan tetap jalan (divalidasi dari salinan daftar undangan di perangkat), disimpan, lalu terkirim otomatis saat koneksi kembali
 - **Real-time Update** — Menggunakan Socket.IO, semua client terhubung langsung mendapat update
 - **Masuk Kembali** — Tamu boleh keluar-masuk (mis. ke WC); scan ulang ditandai "Masuk Kembali" (biru) beserta jam masuk pertama, tidak dihitung ganda
 - **Validasi QR** — QR code tidak valid ditampilkan merah dengan peringatan

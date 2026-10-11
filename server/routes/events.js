@@ -12,7 +12,8 @@ import {
   countInvitationsByEvent,
   deleteAttendancesByEvent,
   getEventsWithStats,
-  getDashboard
+  getDashboard,
+  getOfflineData
 } from '../db.js'
 
 const router = express.Router()
@@ -297,6 +298,17 @@ router.get('/:id/dashboard', requireAdmin, (req, res) => {
     return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
   }
   res.json({ status: 'success', data: { event, ...getDashboard(eventId) } })
+})
+
+// K. GET /api/events/:id/offline-data -> daftar undangan ringkas + QR yang sudah hadir,
+// disimpan perangkat scanner untuk validasi saat internet putus (operator & admin)
+router.get('/:id/offline-data', (req, res) => {
+  const eventId = parseInt(req.params.id)
+  const event = getEventById(eventId)
+  if (!event) {
+    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+  }
+  res.json({ status: 'success', data: { event_id: eventId, generated_at: new Date().toISOString(), ...getOfflineData(eventId) } })
 })
 
 // G. GET /api/events/:id/invitations -> list undangan per event (kelompok per keluarga)

@@ -253,6 +253,8 @@ sudo systemctl restart scan-wisuda
 ## Checklist hari H
 
 - [ ] Login operator dicoba di semua perangkat scanner
+- [ ] Semua perangkat sudah membuka halaman **Scan** saat online (agar website & daftar undangan tersimpan untuk mode offline; cek "Data offline" di panel kanan bawah)
+- [ ] Uji mode offline: matikan WiFi, scan, nyalakan lagi → muncul "scan offline berhasil dikirim"
 - [ ] Gladi resik: scan beberapa undangan asli → lalu **Reset Presensi**
 - [ ] Hotspot HP cadangan siap jika internet gedung putus
 - [ ] Backup database sebelum acara dimulai

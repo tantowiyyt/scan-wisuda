@@ -99,3 +99,18 @@ Tamu boleh keluar-masuk (mis. ke WC) dengan membawa undangan. Scan ulang = norma
 | Hasil | Sama seperti scan manual di browser (hijau/kuning/merah) |
 
 **Catatan**: Jika scanner tidak terdeteksi, pastikan mode scanner adalah "HID Keyboard" bukan "USB COM" atau "RS232".
+
+
+---
+
+## Mode Offline
+
+> Service Worker hanya aktif di build production. Uji dengan `npm run build` lalu
+> `npm start`, buka `http://localhost:3000` (bukan port 5173).
+
+1. Login, buka halaman **Scan**. Panel kanan bawah "Data offline" harus terisi (mis. `9 undangan · 08:15`).
+2. Matikan server (Ctrl+C) **atau** putuskan WiFi perangkat.
+3. Scan undangan valid → kotak hijau **HADIR** dengan label **📴 Offline · menunggu sinkron**, banner kuning **OFFLINE** muncul dengan jumlah antrean.
+4. Scan kode palsu → **QR TIDAK VALID** (dicek offline).
+5. Tekan **F5** saat masih offline → halaman tetap terbuka, antrean tetap ada.
+6. Nyalakan server / WiFi lagi → dalam ±15 detik banner **"✓ N scan offline berhasil dikirim"**, dashboard admin ikut terisi dengan jam scan asli.
