@@ -35,7 +35,7 @@ function buildOptions(families) {
   return { prodiList, jenjangList: [...jenjang].sort() }
 }
 
-const inputClass = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 outline-none transition disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500'
+const inputClass = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-900/50 outline-none transition disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500'
 
 function Field({ label, hint, children, className = '' }) {
   return (
@@ -226,7 +226,7 @@ export default function FamilyFormModal({ eventId, family, families = [], onClos
           <button
             type="submit"
             disabled={saving}
-            className="px-5 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium transition"
+            className="px-5 py-2 text-sm rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium transition"
           >
             {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah'}
           </button>

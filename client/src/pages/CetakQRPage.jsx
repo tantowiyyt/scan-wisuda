@@ -85,7 +85,7 @@ export default function CetakQRPage() {
                 onClick={() => setPreset(key)}
                 className={`p-3 rounded-lg border-2 text-left transition ${
                   preset === key
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50'
+                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/50'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
                 }`}
               >
@@ -115,7 +115,7 @@ export default function CetakQRPage() {
 
         <button
           onClick={() => window.print()}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold text-base transition"
+          className="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl font-semibold text-base transition"
         >
           🖨️ Print Sekarang ({pages.length} halaman)
         </button>

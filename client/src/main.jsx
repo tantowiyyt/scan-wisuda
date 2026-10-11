@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider, installFetchInterceptor } from './auth'
+import '@fontsource-variable/plus-jakarta-sans'
 import './index.css'
 
 installFetchInterceptor()

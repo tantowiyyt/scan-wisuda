@@ -122,14 +122,14 @@ export default function ManagementEventsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold dark:text-slate-100">Management Events</h2>
+          <h2 className="text-3xl font-extrabold tracking-tight text-brand-950 dark:text-white">Management Events</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Kelola event wisuda dan import daftar undangan
           </p>
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium"
+          className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium"
         >
           {showCreateForm ? 'Batal' : '+ Event Baru'}
         </button>
@@ -137,7 +137,7 @@ export default function ManagementEventsPage() {
 
       {/* Info template Excel */}
       {/* Info template Excel */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mb-6">
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl shadow-card p-4 mb-6">
         <p className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm">
           📋 Format Excel yang Dibutuhkan
         </p>
@@ -169,14 +169,14 @@ export default function ManagementEventsPage() {
           </div>
         </div>
 
-        <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-lg p-3 text-xs">
-          <p className="font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
+        <div className="bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/50 rounded-lg p-3 text-xs">
+          <p className="font-semibold text-brand-900 dark:text-brand-300 mb-1">
             💡 Auto-generate QR Orang Tua
           </p>
-          <p className="text-indigo-800 dark:text-indigo-400/80 mb-2">
+          <p className="text-brand-800 dark:text-brand-400/80 mb-2">
             Sistem otomatis membuat 3 QR per mahasiswa saat import:
           </p>
-          <ul className="text-indigo-800 dark:text-indigo-400/80 space-y-0.5 ml-3">
+          <ul className="text-brand-800 dark:text-brand-400/80 space-y-0.5 ml-3">
             <li>• <span className="font-mono bg-white dark:bg-slate-900 px-1 rounded">{'{qr_code}-A'}</span> → mahasiswa</li>
             <li>• <span className="font-mono bg-white dark:bg-slate-900 px-1 rounded">{'{qr_code}-B'}</span> → Bapak sdr. {'{name}'}</li>
             <li>• <span className="font-mono bg-white dark:bg-slate-900 px-1 rounded">{'{qr_code}-C'}</span> → Ibu sdr. {'{name}'}</li>
@@ -206,7 +206,7 @@ export default function ManagementEventsPage() {
 
       {/* Form buat event */}
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 mb-6">
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl shadow-card p-5 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -218,7 +218,7 @@ export default function ManagementEventsPage() {
                 placeholder="Mis. Wisuda 2031"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 outline-none transition"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-900/50 outline-none transition"
               />
             </div>
             <div>
@@ -231,7 +231,7 @@ export default function ManagementEventsPage() {
                 placeholder="2031"
                 value={formData.year}
                 onChange={e => setFormData({ ...formData, year: parseInt(e.target.value) || '' })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 outline-none transition"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-900/50 outline-none transition"
               />
             </div>
             <div>
@@ -242,13 +242,13 @@ export default function ManagementEventsPage() {
                 type="date"
                 value={formData.event_date}
                 onChange={e => setFormData({ ...formData, event_date: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 outline-none transition"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-900/50 outline-none transition"
               />
             </div>
           </div>
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 text-sm rounded-lg font-medium transition shadow-sm"
+            className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 text-sm rounded-lg font-medium transition shadow-sm"
           >
             Simpan Event
           </button>
@@ -258,7 +258,7 @@ export default function ManagementEventsPage() {
       {/* Loading */}
       {loading && (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin text-3xl text-indigo-500">⟳</div>
+          <div className="inline-block animate-spin text-3xl text-brand-500">⟳</div>
           <p className="text-slate-500 dark:text-slate-400 mt-2">Memuat events...</p>
         </div>
       )}
@@ -289,10 +289,10 @@ export default function ManagementEventsPage() {
       {!loading && events.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {events.map((event) => (
-            <div key={event.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
+            <div key={event.id} className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl shadow-card p-5">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-lg">🎓</div>
+                  <div className="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-950 flex items-center justify-center text-lg">🎓</div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-semibold dark:text-slate-100">{event.name}</h3>
@@ -337,7 +337,7 @@ export default function ManagementEventsPage() {
                 />
                 <button
                   onClick={() => navigate(`/events/${event.id}/cetak-qr`)}
-                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-center text-indigo-700 dark:text-indigo-400 text-sm font-medium hover:bg-indigo-100 transition"
+                  className="flex-1 bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 rounded-lg px-3 py-2 text-center text-brand-700 dark:text-brand-400 text-sm font-medium hover:bg-brand-100 transition"
                 >
                   🖨️ Cetak QR
                 </button>

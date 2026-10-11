@@ -25,10 +25,11 @@ async function cacheShell(response) {
   await Promise.all(assets.map(async (url) => {
     if (!(await cache.match(url))) await cache.add(url)
   }))
+  // Buang JS/CSS versi lama saja; font (dimuat dari CSS, tidak ada di index.html) dibiarkan
   const keep = new Set(assets)
   for (const req of await cache.keys()) {
     const path = new URL(req.url).pathname
-    if (path.startsWith('/assets/') && !keep.has(path)) await cache.delete(req)
+    if (path.startsWith('/assets/') && /\.(js|css)$/.test(path) && !keep.has(path)) await cache.delete(req)
   }
 }
 

@@ -56,14 +56,14 @@ export default function PilihEventPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full">
-      <h2 className="text-2xl font-bold mb-2 dark:text-slate-100">Pilih Event Wisuda</h2>
+      <h2 className="text-3xl font-extrabold tracking-tight mb-2 text-brand-950 dark:text-white">Pilih Event Wisuda</h2>
       <p className="text-slate-500 dark:text-slate-400 mb-6">
         {isAdmin ? 'Pilih event untuk dipantau di dashboard' : 'Pilih event untuk mulai memindai undangan'}
       </p>
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-slate-400">Memuat data event...</p>
         </div>
       ) : error ? (
@@ -79,7 +79,7 @@ export default function PilihEventPage() {
               <p>Belum ada event.</p>
               <button
                 onClick={() => navigate('/events')}
-                className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
+                className="mt-4 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
               >
                 + Buat Event
               </button>
@@ -103,10 +103,10 @@ export default function PilihEventPage() {
                 onClick={() => handleSelectEvent(event)}
                 className={`text-left bg-white dark:bg-slate-800 border rounded-xl p-5 hover:shadow-md transition-all flex flex-col
                   ${isActive
-                    ? 'border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-900/50'
+                    ? 'border-brand-500 ring-2 ring-brand-100 dark:ring-brand-900/50'
                     : timing === 'today'
                       ? 'border-emerald-300 dark:border-emerald-800 hover:border-emerald-500'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-indigo-500'}
+                      : 'border-slate-200 dark:border-slate-700 hover:border-brand-500'}
                   ${timing === 'past' && !isActive ? 'opacity-75 hover:opacity-100' : ''}`}
               >
                 <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -114,7 +114,7 @@ export default function PilihEventPage() {
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.className}`}>{badge.label}</span>
                   )}
                   {isActive && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300">
                       ✓ Aktif di perangkat ini
                     </span>
                   )}

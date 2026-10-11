@@ -9,6 +9,7 @@ import useScanner from '../hooks/useScanner'
 import useSocket from '../hooks/useSocket'
 import { playSuccess, playError } from '../utils/sound'
 import DeviceNameModal, { getDeviceName } from '../components/DeviceNameModal'
+import Logo from '../components/Logo'
 import {
   newScanId, OfflineError, isUnreachableStatus,
   loadEventCache, refreshEventCache, markScanned, clearScanned, buildOfflineResult,
@@ -31,7 +32,7 @@ function addRecent(list, item) {
 
 // Label + warna badge per kategori tamu
 const KATEGORI = {
-  mahasiswa: { label: 'Mahasiswa', badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300' },
+  mahasiswa: { label: 'Mahasiswa', badge: 'bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300' },
   ayah: { label: 'Ayah', badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300' },
   ibu: { label: 'Ibu', badge: 'bg-pink-100 text-pink-700 dark:bg-pink-900/60 dark:text-pink-300' },
   wali: { label: 'Wali', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-300' },
@@ -163,7 +164,7 @@ function ScanResultCard({ result }) {
                     hadir
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
                       : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700'
-                  } ${current ? 'ring-2 ring-offset-1 ring-indigo-400 dark:ring-offset-slate-900' : ''}`}
+                  } ${current ? 'ring-2 ring-offset-1 ring-brand-400 dark:ring-offset-slate-900' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -440,9 +441,11 @@ export default function ScannerPage() {
 
       {/* Header: nama event + koneksi */}
       <div className="flex items-center justify-between gap-4 shrink-0">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">Event aktif</p>
-          <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">{currentEventName || '-'}</p>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md bg-gold-400 text-brand-950">
+            Event aktif
+          </span>
+          <p className="text-xl font-extrabold tracking-tight text-brand-950 dark:text-white">{currentEventName || '-'}</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
           <button
@@ -462,38 +465,38 @@ export default function ScannerPage() {
 
       {/* Kartu Statistik (dihitung per keluarga) */}
       <div className="grid grid-cols-3 gap-4 shrink-0">
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 shadow-sm transition-colors">
+        <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-4 shadow-card transition-colors">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <span className="text-xl text-white">✓</span>
+            <div className="w-11 h-11 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
+              <span className="text-xl font-bold">✓</span>
             </div>
             <div className="flex-1">
-              <p className="text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Hadir</p>
-              <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
-                {stats.hadir} <span className="text-sm font-medium opacity-70">({persen}%)</span>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Keluarga Hadir</p>
+              <p className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {stats.hadir} <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{persen}%</span>
               </p>
             </div>
           </div>
-          <div className="mt-3 h-1.5 rounded-full bg-emerald-200/60 dark:bg-emerald-900/60 overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${persen}%` }} />
+          <div className="mt-3 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500" style={{ width: `${persen}%` }} />
           </div>
         </div>
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center gap-4 shadow-sm transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
-            <span className="text-xl text-white">○</span>
+        <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-4 shadow-card transition-colors">
+          <div className="w-11 h-11 rounded-xl bg-gold-400 text-brand-950 flex items-center justify-center shadow-md shadow-gold-500/30">
+            <span className="text-xl font-bold">○</span>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400">Belum Hadir</p>
-            <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">{stats.belumHadir}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Belum Hadir</p>
+            <p className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{stats.belumHadir}</p>
           </div>
         </div>
-        <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 flex items-center gap-4 shadow-sm transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <span className="text-xl text-white">#</span>
+        <div className="bg-gradient-to-br from-brand-800 to-brand-950 text-white rounded-2xl p-4 flex items-center gap-4 shadow-card shadow-brand-900/30 transition-colors">
+          <div className="w-11 h-11 rounded-xl bg-white/15 ring-1 ring-white/20 flex items-center justify-center">
+            <span className="text-xl font-bold text-gold-300">#</span>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Total Keluarga</p>
-            <p className="text-2xl font-semibold text-indigo-700 dark:text-indigo-300">{stats.total}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-200">Total Keluarga</p>
+            <p className="text-3xl font-extrabold tracking-tight">{stats.total}</p>
           </div>
         </div>
       </div>
@@ -511,19 +514,19 @@ export default function ScannerPage() {
               handleScan(manualInput.trim())
               setManualInput('')
             }
-          }} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm shrink-0 transition-colors">
-            <label className="block text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1.5">Input Manual</label>
+          }} className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-3 shadow-card shrink-0 transition-colors">
+            <label className="block text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-1.5">Input Manual</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
                 placeholder="Ketik kode undangan atau scan QR..."
-                className="flex-1 px-4 py-2 text-base font-mono rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 focus:border-indigo-500 focus:dark:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 outline-none transition"
+                className="flex-1 px-4 py-2 text-base font-mono rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 focus:border-brand-500 focus:dark:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-brand-900/50 outline-none transition"
               />
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition"
+                className="bg-brand-800 hover:bg-brand-700 text-white px-6 py-2 rounded-lg font-semibold shadow-md shadow-brand-900/20 transition"
               >
                 Scan
               </button>
@@ -590,10 +593,27 @@ export default function ScannerPage() {
           )}
 
           {!cfg && (
-            <div className="flex-1 rounded-xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-slate-50 to-indigo-50/40 dark:from-slate-800 dark:to-slate-900/50 flex flex-col items-center justify-center min-h-0 p-6 transition-colors">
-              <div className="text-6xl mb-3 text-indigo-300 dark:text-indigo-700">📷</div>
-              <div className="text-lg font-semibold text-slate-600 dark:text-slate-400">Siap menerima scan</div>
-              <div className="text-sm text-slate-400 dark:text-slate-500 mt-1">Arahkan QR code ke alat scanner</div>
+            <div className="relative flex-1 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-800 via-brand-900 to-brand-950 flex flex-col items-center justify-center min-h-0 p-6 shadow-card">
+              {/* Pola titik halus */}
+              <div
+                className="absolute inset-0 opacity-[0.08]"
+                style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }}
+              />
+              <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-gold-400/10 blur-3xl" />
+
+              {/* Bingkai pemindai */}
+              <div className="relative w-40 h-40 shrink-0" style={{ '--scan-range': '150px' }}>
+                {['top-0 left-0 border-t-4 border-l-4 rounded-tl-xl', 'top-0 right-0 border-t-4 border-r-4 rounded-tr-xl',
+                  'bottom-0 left-0 border-b-4 border-l-4 rounded-bl-xl', 'bottom-0 right-0 border-b-4 border-r-4 rounded-br-xl']
+                  .map(pos => <span key={pos} className={`absolute w-9 h-9 border-gold-400 ${pos}`} />)}
+                <div className="absolute inset-5 rounded-xl bg-white flex items-center justify-center p-3 shadow-lg">
+                  <Logo className="w-full h-full" fallbackClassName="text-4xl" />
+                </div>
+                <div className="absolute left-1 right-1 top-1 h-0.5 rounded-full bg-gold-300 shadow-[0_0_12px_2px_rgba(250,214,28,0.7)] animate-scan-line" />
+              </div>
+
+              <div className="relative text-2xl font-extrabold tracking-tight text-white mt-6">Siap menerima scan</div>
+              <div className="relative text-sm text-brand-200 mt-1">Arahkan QR code undangan ke alat scanner</div>
             </div>
           )}
         </div>
@@ -606,7 +626,7 @@ export default function ScannerPage() {
             <div className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex justify-between items-center shrink-0">
               <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Kehadiran Terakhir</h2>
               {attendances.length > 0 && (
-                <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-2 py-0.5 rounded-full">{attendances.length}</span>
+                <span className="bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 text-xs font-semibold px-2 py-0.5 rounded-full">{attendances.length}</span>
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-2 bg-white dark:bg-slate-800 min-h-0 divide-y divide-slate-100 dark:divide-slate-700/60">
@@ -616,7 +636,7 @@ export default function ScannerPage() {
                   ? [a.nim, a.kelas].filter(Boolean).join(' • ')
                   : a.mahasiswa_name && `Ortu dari ${a.mahasiswa_name}`
                 return (
-                  <div key={`${a.qr_code}-${a.scanned_at}`} className="py-2 px-2 rounded-lg hover:bg-indigo-50/50 dark:hover:bg-slate-700/50 transition">
+                  <div key={`${a.qr_code}-${a.scanned_at}`} className="py-2 px-2 rounded-lg hover:bg-brand-50/50 dark:hover:bg-slate-700/50 transition">
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">{a.name}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-mono shrink-0">{fmtTime(a.scanned_at)}</span>
@@ -643,24 +663,24 @@ export default function ScannerPage() {
           </div>
 
           {/* Info Sistem */}
-          <div className="bg-indigo-50/50 dark:bg-slate-800/50 border border-indigo-100 dark:border-slate-700 rounded-xl p-3 text-xs space-y-1 shrink-0 transition-colors">
+          <div className="bg-brand-50/50 dark:bg-slate-800/50 border border-brand-100 dark:border-slate-700 rounded-xl p-3 text-xs space-y-1 shrink-0 transition-colors">
             <div className="flex justify-between">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Server</span>
-              <span className="text-indigo-900/70 dark:text-slate-400">{window.location.origin}</span>
+              <span className="text-brand-600 dark:text-brand-400 font-medium">Server</span>
+              <span className="text-brand-900/70 dark:text-slate-400">{window.location.origin}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Perangkat</span>
-              <span className="text-indigo-900/70 dark:text-slate-400">{scannerId}</span>
+              <span className="text-brand-600 dark:text-brand-400 font-medium">Perangkat</span>
+              <span className="text-brand-900/70 dark:text-slate-400">{scannerId}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Data offline</span>
-              <span className="text-indigo-900/70 dark:text-slate-400">
+              <span className="text-brand-600 dark:text-brand-400 font-medium">Data offline</span>
+              <span className="text-brand-900/70 dark:text-slate-400">
                 {cacheInfo ? `${cacheInfo.count} undangan · ${new Date(cacheInfo.savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : 'Belum tersimpan'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Terakhir update</span>
-              <span className="text-indigo-900/70 dark:text-slate-400">
+              <span className="text-brand-600 dark:text-brand-400 font-medium">Terakhir update</span>
+              <span className="text-brand-900/70 dark:text-slate-400">
                 {lastUpdateTime ? lastUpdateTime.toLocaleTimeString('id-ID') : '-'}
               </span>
             </div>

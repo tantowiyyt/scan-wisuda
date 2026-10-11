@@ -12,7 +12,7 @@ export default function Logo({ className = 'w-10 h-10', fallbackClassName = '' }
 
   if (failed) {
     return (
-      <div className={`${className} ${fallbackClassName} rounded-lg bg-indigo-600 text-white flex items-center justify-center`}>
+      <div className={`${className} ${fallbackClassName} rounded-lg bg-brand-600 text-white flex items-center justify-center`}>
         🎓
       </div>
     )

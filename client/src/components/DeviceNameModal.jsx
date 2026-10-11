@@ -40,7 +40,7 @@ export default function DeviceNameModal({ initial = '', required = false, onSave
         onClick={e => e.stopPropagation()}
         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-6 w-full max-w-sm"
       >
-        <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-2xl mb-4">🖥️</div>
+        <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center text-2xl mb-4">🖥️</div>
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Nama perangkat ini</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
           Beri nama unik per perangkat scanner agar mudah dipantau di dashboard, misalnya <b>Gerbang A - 1</b>.
@@ -53,7 +53,7 @@ export default function DeviceNameModal({ initial = '', required = false, onSave
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Gerbang A - 1"
-          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 outline-none transition"
+          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 dark:focus:ring-brand-900/40 outline-none transition"
         />
         <div className="flex justify-end gap-2 mt-5">
           {!required && (
@@ -68,7 +68,7 @@ export default function DeviceNameModal({ initial = '', required = false, onSave
           <button
             type="submit"
             disabled={!trimmed}
-            className="px-5 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium transition"
+            className="px-5 py-2 text-sm rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium transition"
           >
             Simpan
           </button>

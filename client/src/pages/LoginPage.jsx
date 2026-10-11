@@ -40,10 +40,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors">
 
       {/* Panel kiri: identitas aplikasi (desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-900 to-brand-950 text-white">
+        {/* Garis emas di tepi kanan panel */}
+        <div className="absolute inset-y-0 right-0 w-1 bg-gradient-to-b from-gold-300 via-gold-400 to-gold-600" />
         {/* Dekorasi lingkaran blur */}
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-violet-400/20 blur-3xl translate-x-1/3 translate-y-1/3" />
+        <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-gold-400/15 blur-3xl translate-x-1/3 translate-y-1/3" />
         {/* Pola titik halus */}
         <div
           className="absolute inset-0 opacity-[0.07]"
@@ -57,34 +59,34 @@ export default function LoginPage() {
             </div>
             <div>
               <p className="text-lg font-semibold tracking-wide leading-tight">Scan Wisuda</p>
-              <p className="text-sm text-indigo-100/80">Politeknik Negeri Indramayu</p>
+              <p className="text-sm text-brand-100/80">Politeknik Negeri Indramayu</p>
             </div>
           </div>
 
           <div className="max-w-md">
-            <h1 className="text-4xl font-bold leading-tight">
-              Presensi wisuda,<br />cepat &amp; tanpa antre.
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
+              Presensi wisuda,<br /><span className="text-gold-300">cepat &amp; tanpa antre.</span>
             </h1>
-            <p className="mt-4 text-indigo-100/90 text-base leading-relaxed">
+            <p className="mt-4 text-brand-100/90 text-base leading-relaxed">
               Sistem absensi digital berbasis QR code untuk mencatat kehadiran wisudawan dan keluarga secara realtime.
             </p>
 
             <div className="mt-10 space-y-4">
               {FITUR.map(f => (
                 <div key={f.title} className="flex items-start gap-4">
-                  <div className="w-10 h-10 shrink-0 rounded-lg bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-lg">
+                  <div className="w-10 h-10 shrink-0 rounded-lg bg-gold-400/15 ring-1 ring-gold-300/30 flex items-center justify-center text-lg">
                     {f.icon}
                   </div>
                   <div>
                     <p className="font-semibold">{f.title}</p>
-                    <p className="text-sm text-indigo-100/80">{f.desc}</p>
+                    <p className="text-sm text-brand-100/80">{f.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <p className="text-xs text-indigo-200/70">© {new Date().getFullYear()} Politeknik Negeri Indramayu</p>
+          <p className="text-xs text-brand-200/70">© {new Date().getFullYear()} Politeknik Negeri Indramayu</p>
         </div>
       </div>
 
@@ -106,7 +108,7 @@ export default function LoginPage() {
 
             {/* Logo (mobile) */}
             <div className="lg:hidden flex flex-col items-center mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center p-2 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200 dark:ring-slate-700">
+              <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center p-2 shadow-lg shadow-brand-500/20 ring-1 ring-slate-200 dark:ring-slate-700">
                 <Logo className="w-full h-full" fallbackClassName="text-4xl" />
               </div>
               <p className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-100">Scan Wisuda</p>
@@ -131,7 +133,7 @@ export default function LoginPage() {
                 className={`w-full px-4 py-3 rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:ring-4 ${
                   error
                     ? 'border-rose-400 dark:border-rose-700 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/40'
-                    : 'border-slate-300 dark:border-slate-700 focus:border-indigo-500 focus:ring-indigo-100 dark:focus:ring-indigo-900/40'
+                    : 'border-slate-300 dark:border-slate-700 focus:border-brand-500 focus:ring-brand-100 dark:focus:ring-brand-900/40'
                 }`}
               />
 
@@ -145,7 +147,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading || !password}
-                className="w-full mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 transition"
+                className="w-full mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-brand-700 to-brand-900 hover:from-brand-600 hover:to-brand-800 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold shadow-lg shadow-brand-500/25 transition"
               >
                 {loading ? (
                   <>
@@ -169,7 +171,7 @@ export default function LoginPage() {
             {/* Keterangan role */}
             <div className="mt-8 grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-                <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Admin</p>
+                <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">Admin</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Kelola event, import, laporan</p>
               </div>
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">

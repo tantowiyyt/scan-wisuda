@@ -49,10 +49,10 @@ function fillTimeline(rows, extendToNow) {
 
 function Card({ title, right, children, className = '' }) {
   return (
-    <div className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl shadow-card ${className}`}>
       {title && (
         <div className="flex items-center justify-between px-5 pt-4">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+          <h3 className="text-sm font-bold text-brand-950 dark:text-slate-100">{title}</h3>
           {right}
         </div>
       )}
@@ -89,7 +89,7 @@ function ArrivalChart({ data }) {
                 onMouseEnter={() => setHover(i)}
               >
                 <div
-                  className={`w-full rounded-t ${hover === i ? 'bg-indigo-600 dark:bg-indigo-400' : 'bg-indigo-500 dark:bg-indigo-500'} transition-colors`}
+                  className={`w-full rounded-t ${hover === i ? 'bg-brand-900 dark:bg-brand-300' : 'bg-brand-700 dark:bg-brand-400'} transition-colors`}
                   style={{ height: `${(d.total / max) * 100}%`, minHeight: d.total > 0 ? 3 : 0 }}
                 />
               </div>
@@ -208,7 +208,7 @@ export default function DashboardPage() {
               {event.event_date ? formatTanggal(event.event_date) : `Tahun ${event.year}`}
             </span>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{event.name}</h2>
+          <h2 className="text-3xl font-extrabold tracking-tight text-brand-950 dark:text-white">{event.name}</h2>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1.5">
@@ -216,27 +216,28 @@ export default function DashboardPage() {
             {connectionStatus === 'connected' ? 'Live' : 'Terputus'}
           </span>
           {updatedAt && <span>Diperbarui {updatedAt.toLocaleTimeString('id-ID')}</span>}
-          <Link to="/pilih-event" className="text-indigo-600 dark:text-indigo-400 hover:underline">Ganti event</Link>
+          <Link to="/pilih-event" className="text-brand-600 dark:text-brand-400 hover:underline">Ganti event</Link>
         </div>
       </div>
 
       {/* Ringkasan */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Hero: kehadiran keluarga */}
-        <Card className="lg:col-span-1">
-          <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">Keluarga hadir</p>
-          <p className="mt-1">
-            <span className="text-5xl font-bold text-slate-900 dark:text-slate-50">{keluarga.hadir}</span>
-            <span className="text-xl text-slate-400"> / {keluarga.total}</span>
+        <div className="relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br from-brand-700 via-brand-900 to-brand-950 shadow-card shadow-brand-900/30 lg:col-span-1">
+          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gold-400/15 blur-2xl" />
+          <p className="relative text-xs font-semibold uppercase tracking-wider text-brand-200">Keluarga hadir</p>
+          <p className="relative mt-1">
+            <span className="text-6xl font-extrabold tracking-tight text-gold-300">{keluarga.hadir}</span>
+            <span className="text-xl text-brand-200"> / {keluarga.total}</span>
           </p>
-          <div className="mt-4 h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${persen}%` }} />
+          <div className="relative mt-4 h-2 rounded-full bg-white/15 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-gold-300 to-gold-500 transition-all duration-500" style={{ width: `${persen}%` }} />
           </div>
-          <div className="flex justify-between text-xs mt-2 text-slate-500 dark:text-slate-400">
-            <span><b className="text-slate-700 dark:text-slate-200">{persen}%</b> hadir</span>
+          <div className="relative flex justify-between text-xs mt-2 text-brand-200">
+            <span><b className="text-white">{persen}%</b> hadir</span>
             <span>{keluarga.belumHadir} belum hadir</span>
           </div>
-        </Card>
+        </div>
 
         {/* Per kategori */}
         <Card title="Kehadiran per kategori" className="lg:col-span-1">
@@ -254,7 +255,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                    <div className="h-full rounded-full bg-indigo-500" style={{ width: `${p}%` }} />
+                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${p}%` }} />
                   </div>
                 </div>
               )
@@ -353,7 +354,7 @@ export default function DashboardPage() {
               <button
                 key={a.label}
                 onClick={a.onClick}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-slate-700/50 text-sm text-slate-700 dark:text-slate-200 transition"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-brand-400 hover:bg-brand-50/50 dark:hover:bg-slate-700/50 text-sm text-slate-700 dark:text-slate-200 transition"
               >
                 <span>{a.icon}</span>{a.label}
               </button>
