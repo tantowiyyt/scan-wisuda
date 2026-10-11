@@ -132,29 +132,59 @@ sudo journalctl -u scan-wisuda -f
 
 # Deploy ke VPS (Akses via Internet)
 
-Semua PC scanner membuka `https://domain-anda` dari browser. Server berjalan di
-belakang **nginx** (HTTPS) dan port 3000 **tidak** dibuka ke internet.
+Semua perangkat scanner membuka `http://IP-VPS` (atau `https://domain`) dari browser.
+Aplikasi berjalan sebagai layanan systemd di belakang **nginx**; port 3000 tidak dibuka ke internet.
 
-## 1. Install & clone
+> 💡 Saat menempel perintah ke terminal SSH, jalankan **satu baris per satu baris**.
+> Blok panjang sering terpecah / ikut spasi di depan. Kalau muncul `>` terus-menerus, tekan **Ctrl+C**.
+
+## 1. Paket dasar (sebagai root)
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs git python3 build-essential nginx certbot python3-certbot-nginx sqlite3
-git clone https://github.com/tantowiyyt/scan-wisuda.git
+apt update && apt upgrade -y
+apt install -y git curl build-essential python3 nginx sqlite3 ufw
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs
+timedatectl set-timezone Asia/Jakarta    # PENTING: jam laporan CSV memakai zona waktu server
+```
+
+Swap 2 GB (cadangan RAM saat build) & user khusus aplikasi:
+
+```bash
+[ -f /swapfile ] || (fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab)
+id wisuda >/dev/null 2>&1 || adduser --disabled-password --gecos "" wisuda
+```
+
+## 2. Akses repo GitHub (privat) dengan deploy key
+
+```bash
+sudo -u wisuda mkdir -p -m 700 /home/wisuda/.ssh
+sudo -u wisuda ssh-keygen -t ed25519 -C "vps-scan-wisuda" -f /home/wisuda/.ssh/id_ed25519 -N ""
+cat /home/wisuda/.ssh/id_ed25519.pub
+```
+
+Tempel isinya di GitHub → repo → **Settings → Deploy keys → Add deploy key** (tanpa *write access*). Uji:
+
+```bash
+sudo -u wisuda ssh -o StrictHostKeyChecking=accept-new -T git@github.com
+```
+
+## 3. Unduh, pasang, build (sebagai user wisuda)
+
+```bash
+sudo -iu wisuda
+git clone git@github.com:tantowiyyt/scan-wisuda.git
 cd scan-wisuda
 npm run install:all
 npm run build
+cp server/.env.example server/.env
+nano server/.env
 ```
 
 > ⚠️ **Jangan jalankan `npm run seed` di VPS** — seed menghapus semua data.
 > Buat event dan import Excel lewat halaman **Events**.
 
-## 2. Isi `server/.env`
-
-```bash
-cp server/.env.example server/.env
-nano server/.env
-```
+Isi `server/.env`:
 
 ```
 PORT=3000
@@ -168,93 +198,84 @@ HOST=127.0.0.1
 
 | Login | Akses |
 |-------|-------|
-| `ADMIN_PASSWORD` | Semua: events, import, cetak QR, laporan CSV, reset presensi |
+| `ADMIN_PASSWORD` | Semua: dashboard, events, import, cetak QR, laporan CSV, reset presensi |
 | `SCANNER_PASSWORD` | Pilih event, scan, lihat daftar mahasiswa |
 
-Ganti password = edit `.env` lalu restart server. Sesi lama untuk role itu otomatis logout.
+`TRUST_PROXY=1` wajib di belakang nginx (IP asli perangkat untuk kunci login per perangkat).
+Ganti password = edit `.env` lalu `systemctl restart scan-wisuda`; sesi lama role itu otomatis logout.
 
-## 3. systemd
+## 4. Layanan systemd (sebagai root)
 
-`/etc/systemd/system/scan-wisuda.service` (sesuaikan `User` & path):
-
-```ini
-[Unit]
-Description=Scan Wisuda Server
-After=network.target
-
-[Service]
-Type=simple
-User=<user-vps>
-WorkingDirectory=/home/<user-vps>/scan-wisuda
-ExecStart=/usr/bin/node server/index.js
-Restart=always
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-```
+File layanan ada di repo (`deploy/scan-wisuda.service`):
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now scan-wisuda
-sudo journalctl -u scan-wisuda -f    # lihat log
+exit    # kembali ke root
+cp /home/wisuda/scan-wisuda/deploy/scan-wisuda.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now scan-wisuda
+systemctl status scan-wisuda --no-pager | head -5     # harus: active (running)
+curl -s localhost:3000/api/auth/me                     # harus: {"status":"success","data":null}
+journalctl -u scan-wisuda -f                           # lihat log (Ctrl+C untuk keluar)
 ```
 
-## 4. nginx + HTTPS
-
-Arahkan DNS domain (A record) ke IP VPS, lalu buat `/etc/nginx/sites-available/scan-wisuda`:
-
-```nginx
-server {
-    listen 80;
-    server_name domain-anda.com;
-
-    client_max_body_size 10m;   # upload Excel
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        # Wajib untuk Socket.IO (WebSocket)
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
+## 5. nginx + firewall (sebagai root)
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/scan-wisuda /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d domain-anda.com     # HTTPS gratis (Let's Encrypt)
-sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
+cp /home/wisuda/scan-wisuda/deploy/nginx-scan-wisuda.conf /etc/nginx/sites-available/scan-wisuda
+ln -sf /etc/nginx/sites-available/scan-wisuda /etc/nginx/sites-enabled/scan-wisuda
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+
+ufw allow OpenSSH        # DULU, agar SSH tidak terkunci
+ufw allow 'Nginx Full'
+ufw enable
 ```
 
-## 5. Backup database
+Buka `http://IP-VPS` dari browser. Kalau timeout, buka **panel web penyedia VPS → Firewall / Security Group**
+dan izinkan **TCP 80** (dan **443** untuk HTTPS).
 
-Backup harian (dan jalankan manual sebelum & sesudah acara):
+## 6. HTTPS (opsional, butuh domain)
+
+Tanpa domain aplikasi tetap jalan via `http://IP`, tetapi Service Worker tidak aktif
+(mode offline tetap jalan selama tab tidak di-refresh). Dengan domain (A record → IP VPS):
 
 ```bash
-mkdir -p ~/backup-wisuda
-sqlite3 ~/scan-wisuda/server/data/wisuda.db ".backup '$HOME/backup-wisuda/wisuda-$(date +%F-%H%M).db'"
+sed -i 's/server_name _;/server_name domain-anda.com;/' /etc/nginx/sites-available/scan-wisuda
+nginx -t && systemctl reload nginx
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d domain-anda.com
 ```
 
-Selama acara, download **Laporan CSV** secara berkala sebagai cadangan.
+## 7. Backup database otomatis
 
-## 6. Update aplikasi
+Skrip `deploy/backup-db.sh` menyalin database ke `server/data/backups/` (aman walau server berjalan,
+file > 7 hari dihapus). Pasang cron tiap 30 menit (sebagai root):
 
 ```bash
-cd ~/scan-wisuda
-bash deploy.sh
-sudo systemctl restart scan-wisuda
+(crontab -u wisuda -l 2>/dev/null; echo "*/30 * * * * bash /home/wisuda/scan-wisuda/deploy/backup-db.sh >/dev/null 2>&1") | crontab -u wisuda -
+sudo -u wisuda bash /home/wisuda/scan-wisuda/deploy/backup-db.sh    # uji sekali
+ls /home/wisuda/scan-wisuda/server/data/backups/
+```
+
+Pulihkan backup: `systemctl stop scan-wisuda`, salin file backup menjadi `server/data/wisuda.db`
+(hapus `wisuda.db-wal` & `wisuda.db-shm`), lalu `systemctl start scan-wisuda`.
+
+Selama acara, download juga **Laporan CSV** berkala sebagai cadangan kedua.
+
+## 8. Update aplikasi
+
+```bash
+sudo -iu wisuda
+cd scan-wisuda && bash deploy.sh
+exit
+systemctl restart scan-wisuda
 ```
 
 ## Checklist hari H
 
-- [ ] Login operator dicoba di semua perangkat scanner
-- [ ] Semua perangkat sudah membuka halaman **Scan** saat online (agar website & daftar undangan tersimpan untuk mode offline; cek "Data offline" di panel kanan bawah)
-- [ ] Uji mode offline: matikan WiFi, scan, nyalakan lagi → muncul "scan offline berhasil dikirim"
+- [ ] Login operator dicoba di semua perangkat scanner, tiap perangkat diberi **nama** berbeda
+- [ ] Semua perangkat sudah membuka halaman **Scan** saat online (cek "Data offline" di panel kanan bawah)
 - [ ] Gladi resik: scan beberapa undangan asli → lalu **Reset Presensi**
+- [ ] Uji mode offline: matikan WiFi perangkat, scan, nyalakan lagi → "scan offline berhasil dikirim"
 - [ ] Hotspot HP cadangan siap jika internet gedung putus
-- [ ] Backup database sebelum acara dimulai
+- [ ] Backup manual sebelum acara: `sudo -u wisuda bash /home/wisuda/scan-wisuda/deploy/backup-db.sh`

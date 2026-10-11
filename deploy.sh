@@ -12,4 +12,4 @@ npm run install:all
 echo "🔨 Build client..."
 npm run build
 
-echo "✅ Selesai. Restart server dengan: npm start"
+echo "✅ Selesai. Restart server: sudo systemctl restart scan-wisuda (VPS) atau npm start (lokal)"
