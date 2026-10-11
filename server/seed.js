@@ -1,3 +1,4 @@
+import './env.js'
 import db from './db.js'
 import { createEvent, createInvitation, getAllEvents } from './db.js'
 

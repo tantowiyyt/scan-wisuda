@@ -1,5 +1,6 @@
 import express from 'express'
 import multer from 'multer'
+import crypto from 'crypto'
 import * as XLSX from 'xlsx'
 import {
   getAllEvents,
@@ -10,7 +11,7 @@ import {
   createInvitation,
   getFamiliesWithStatus,
   countInvitationsByEvent,
-  getInvitationsForQRCodes
+  deleteAttendancesByEvent
 } from '../db.js'
 
 const router = express.Router()
@@ -223,11 +224,18 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
       const namaIbu = `Ibu sdr. ${namaMhs}`
 
       // Insert 3 rows: mahasiswa (A), ayah (B), ibu (C)
-      createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa', nim || null, kelas || null)
-      createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah', null, null)
-      createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu', null, null)
-      
-      imported += 3
+      const inserted = [
+        createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa', nim || null, kelas || null),
+        createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah', null, null),
+        createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu', null, null),
+      ].reduce((sum, r) => sum + r.changes, 0)
+
+      // Baris yang QR-nya sudah ada di-IGNORE, jadi tidak dihitung sebagai imported
+      if (inserted === 0) {
+        skipped++
+        continue
+      }
+      imported += inserted
       families++
     }
 
@@ -238,6 +246,56 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
   }
 })
 
+// Batas percobaan password reset (in-memory, per IP): 5x salah → kunci 1 menit
+const MAX_ATTEMPTS = 5
+const LOCK_MS = 60 * 1000
+const resetAttempts = new Map()
+
+function checkPassword(input, expected) {
+  // Bandingkan hash agar panjang sama & waktu konstan (anti timing attack)
+  const a = crypto.createHash('sha256').update(String(input ?? '')).digest()
+  const b = crypto.createHash('sha256').update(expected).digest()
+  return crypto.timingSafeEqual(a, b)
+}
+
+// I. DELETE /api/events/:id/attendances -> reset presensi (butuh RESET_PASSWORD)
+router.delete('/:id/attendances', (req, res) => {
+  const expected = process.env.RESET_PASSWORD
+  if (!expected) {
+    return res.status(403).json({ status: 'error', message: 'Fitur reset nonaktif. Isi RESET_PASSWORD di server/.env lalu restart server.' })
+  }
+
+  const ip = req.ip
+  const now = Date.now()
+  const rec = resetAttempts.get(ip) || { count: 0, lockedUntil: 0 }
+  if (rec.lockedUntil > now) {
+    const sisa = Math.ceil((rec.lockedUntil - now) / 1000)
+    return res.status(429).json({ status: 'error', message: `Terlalu banyak percobaan salah. Coba lagi dalam ${sisa} detik.` })
+  }
+
+  if (!checkPassword(req.body?.password, expected)) {
+    rec.count++
+    if (rec.count >= MAX_ATTEMPTS) {
+      rec.count = 0
+      rec.lockedUntil = now + LOCK_MS
+    }
+    resetAttempts.set(ip, rec)
+    return res.status(401).json({ status: 'error', message: 'Password salah' })
+  }
+  resetAttempts.delete(ip)
+
+  const eventId = parseInt(req.params.id)
+  const event = getEventById(eventId)
+  if (!event) {
+    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+  }
+
+  const deleted = deleteAttendancesByEvent(eventId)
+  console.log(`[reset] ${deleted} data scan dihapus dari event "${event.name}" oleh ${ip}`)
+  req.app.get('io').emit('attendance_reset', { event_id: eventId })
+  res.json({ status: 'success', data: { deleted } })
+})
+
 // G. GET /api/events/:id/invitations -> list undangan per event (kelompok per keluarga)
 router.get('/:id/invitations', (req, res) => {
   const eventId = parseInt(req.params.id)
@@ -246,17 +304,6 @@ router.get('/:id/invitations', (req, res) => {
     return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
   }
   res.json({ status: 'success', data: getFamiliesWithStatus(eventId) })
-})
-
-// H. GET /api/events/:id/qrcodes/preview -> data untuk cetak QR (include nim, kelas)
-router.get('/:id/qrcodes/preview', (req, res) => {
-  const eventId = parseInt(req.params.id)
-  const event = getEventById(eventId)
-  if (!event) {
-    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
-  }
-  const data = getInvitationsForQRCodes(eventId)
-  res.json({ status: 'success', data })
 })
 
 export default router

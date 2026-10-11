@@ -1,11 +1,15 @@
 import Database from 'better-sqlite3'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { mkdirSync, existsSync } from 'fs'
 
 const __dirname = join(fileURLToPath(import.meta.url), '..')
 
-const dbPath = process.env.DB_PATH || join(__dirname, 'data', 'wisuda.db')
+// DB_PATH relatif di-resolve dari folder server/ agar dev, npm start, seed,
+// dan systemd selalu memakai file database yang sama
+const dbPath = process.env.DB_PATH
+  ? resolve(__dirname, process.env.DB_PATH)
+  : join(__dirname, 'data', 'wisuda.db')
 const dataDir = join(dbPath, '..')
 
 if (!existsSync(dataDir)) {
@@ -60,12 +64,27 @@ db.exec(`
 const findInvitationStmt = db.prepare('SELECT * FROM invitations WHERE event_id = ? AND qr_code = ?')
 const getAttendanceByQrStmt = db.prepare('SELECT * FROM attendances WHERE event_id = ? AND qr_code = ? ORDER BY scanned_at DESC LIMIT 1')
 const recordAttendanceStmt = db.prepare('INSERT INTO attendances (event_id, qr_code, name, scanner_id, status) VALUES (?, ?, ?, ?, ?)')
+// Kehadiran + info undangan; data mahasiswa diambil dari anggota keluarga
+// kategori 'mahasiswa' agar scan orang tua juga tahu "orang tua dari siapa"
 const getAllAttendancesStmt = db.prepare(`
-  SELECT a.id, a.event_id, a.qr_code, a.name, a.scanner_id, a.status, a.scanned_at
+  SELECT a.id, a.event_id, a.qr_code, a.name, a.scanner_id, a.status,
+    strftime('%Y-%m-%dT%H:%M:%SZ', a.scanned_at) AS scanned_at,
+    i.kategori, i.family_group,
+    m.name AS mahasiswa_name, m.nim, m.kelas, m.prodi, m.jenjang
   FROM attendances a
+  LEFT JOIN invitations i ON i.event_id = a.event_id AND i.qr_code = a.qr_code
+  LEFT JOIN invitations m ON m.event_id = a.event_id AND m.family_group = i.family_group AND m.kategori = 'mahasiswa'
   WHERE a.event_id = ? AND a.status = 'success'
-  ORDER BY a.scanned_at DESC
+  ORDER BY a.scanned_at DESC, a.id DESC
   LIMIT ?
+`)
+const getFamilyMembersStmt = db.prepare(`
+  SELECT i.kategori, i.name, i.qr_code, i.prodi, i.jenjang, i.nim, i.kelas,
+    (SELECT strftime('%Y-%m-%dT%H:%M:%SZ', MIN(a.scanned_at)) FROM attendances a
+      WHERE a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success') AS scanned_at
+  FROM invitations i
+  WHERE i.event_id = ? AND i.family_group = ?
+  ORDER BY CASE i.kategori WHEN 'mahasiswa' THEN 0 WHEN 'ayah' THEN 1 WHEN 'ibu' THEN 2 ELSE 3 END
 `)
 const getStatsStmt = db.prepare(`
   SELECT 
@@ -92,7 +111,7 @@ const getAllInvitationsWithStatusStmt = db.prepare(`
       WHEN a.id IS NOT NULL AND a.status = 'duplicate' THEN 'duplicate'
       ELSE 'belum'
     END AS status,
-    a.scanned_at
+    strftime('%Y-%m-%dT%H:%M:%SZ', a.scanned_at) AS scanned_at
   FROM invitations i
   LEFT JOIN attendances a ON a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success'
   WHERE i.event_id = ?
@@ -105,6 +124,7 @@ const createEventStmt = db.prepare('INSERT INTO events (name, year, event_date) 
 const updateEventStmt = db.prepare('UPDATE events SET name = ?, year = ?, event_date = ? WHERE id = ?')
 const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
 const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, nim, kelas, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+const deleteAttendancesByEventStmt = db.prepare('DELETE FROM attendances WHERE event_id = ?')
 const countInvitationsByEventStmt = db.prepare('SELECT COUNT(*) as count FROM invitations WHERE event_id = ?')
 
 const getInvitationsForQRCodesStmt = db.prepare(`
@@ -129,7 +149,7 @@ const getFamiliesWithStatusStmt = db.prepare(`
       WHEN a.id IS NOT NULL AND a.status = 'duplicate' THEN 'duplicate'
       ELSE 'belum'
     END AS status,
-    a.scanned_at
+    strftime('%Y-%m-%dT%H:%M:%SZ', a.scanned_at) AS scanned_at
   FROM invitations i
   LEFT JOIN attendances a ON a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success'
   WHERE i.event_id = ?
@@ -146,6 +166,24 @@ export function getAttendanceByQr(eventId, qrCode) {
 
 export function recordAttendance(eventId, qrCode, name, scannerId, status) {
   return recordAttendanceStmt.run(eventId, qrCode, name, scannerId, status)
+}
+
+// Detail lengkap untuk tampilan hasil scan: info mahasiswa + status tiap anggota keluarga
+export function getScanDetail(eventId, inv) {
+  const members = getFamilyMembersStmt.all(eventId, inv.family_group)
+  const mhs = members.find(m => m.kategori === 'mahasiswa') || {}
+  const self = members.find(m => m.qr_code === inv.qr_code) || {}
+  return {
+    kategori: inv.kategori,
+    family_group: inv.family_group,
+    mahasiswa_name: mhs.name || null,
+    nim: mhs.nim || null,
+    kelas: mhs.kelas || null,
+    prodi: mhs.prodi || null,
+    jenjang: mhs.jenjang || null,
+    first_scanned_at: self.scanned_at || null,
+    family: members.map(m => ({ kategori: m.kategori, name: m.name, qr_code: m.qr_code, scanned_at: m.scanned_at })),
+  }
 }
 
 export function getAllAttendances(eventId, limit = 50) {
@@ -199,6 +237,11 @@ export function deleteEvent(id) {
 
 export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenjang, kategori, nim, kelas) {
   return createInvitationStmt.run(eventId, familyGroup, qrCode, name, prodi || null, jenjang || null, nim || null, kelas || null, kategori, 1)
+}
+
+// Hapus semua data scan satu event (undangan tetap ada)
+export function deleteAttendancesByEvent(eventId) {
+  return deleteAttendancesByEventStmt.run(eventId).changes
 }
 
 export function countInvitationsByEvent(eventId) {

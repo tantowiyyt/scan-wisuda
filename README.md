@@ -46,8 +46,13 @@ Buat file `.env` berdasarkan `.env.example` di masing-masing folder:
 **server/.env**
 ```
 PORT=3000
-DB_PATH=./data/wisuda.db
+DB_PATH=./data/wisuda.db   # relatif terhadap folder server/
+RESET_PASSWORD=            # password tombol "Reset Presensi"; kosong = fitur nonaktif
 ```
+
+### Reset Presensi (untuk uji coba sebelum acara)
+
+Halaman **Daftar Mahasiswa** → tombol **Reset Presensi** → masukkan password. Hanya data scan event aktif yang dihapus; event dan undangan tetap ada. Ganti password cukup edit `RESET_PASSWORD` di `server/.env` lalu restart server — tidak perlu ubah kode.
 
 **client/.env**
 ```
@@ -156,9 +161,11 @@ sudo systemctl status scan-wisuda
 
 | Method | Endpoint | Body / Response |
 |--------|----------|-----------------|
-| POST | `/api/scan` | `{ "qr_code": "WSD-001", "scanner_id": "PC-1" }` |
-| GET | `/api/attendances` | Daftar kehadiran terakhir |
-| GET | `/api/stats` | `{ total, hadir, belumHadir }` |
+| POST | `/api/scan` | `{ "qr_code": "WSD-001-A", "scanner_id": "PC-1", "event_id": 1 }` |
+| GET | `/api/attendances?event_id=` | Daftar kehadiran terakhir |
+| GET | `/api/stats?event_id=` | `{ total, hadir, belumHadir }` |
+
+Daftar lengkap endpoint (event, import Excel, QR, laporan CSV) ada di [AGENTS.md](./AGENTS.md#api-endpoints).
 
 ## Socket.IO Events
 

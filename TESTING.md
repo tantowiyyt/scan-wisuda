@@ -12,14 +12,14 @@ Buka browser di `http://localhost:5173`.
 
 ## 1. Scan Sukses
 
-**Kode**: `WSD-001`
+**Kode**: `WSD-001-A`
 
 | Ekspektasi | Detail |
 |------------|--------|
 | Kotak status | Hijau dengan ikon ✓ dan label "HADIR" |
 | Nama wisudawan | Muncul di bawah label |
 | Suara | Bip pendek tinggi (1200 Hz, 100ms) |
-| Input field | Menampilkan `WSD-001` |
+| Input field | Menampilkan `WSD-001-A` |
 | Sidebar | Nama muncul di paling atas daftar kehadiran |
 | Footer | Jumlah hadir bertambah 1 |
 
@@ -27,7 +27,7 @@ Buka browser di `http://localhost:5173`.
 
 ## 2. Scan Duplikat
 
-**Kode**: `WSD-001` (scan kedua kalinya)
+**Kode**: `WSD-001-A` (scan kedua kalinya)
 
 | Ekspektasi | Detail |
 |------------|--------|

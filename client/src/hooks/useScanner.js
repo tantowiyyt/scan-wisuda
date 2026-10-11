@@ -16,6 +16,15 @@ export default function useScanner(onScan, timeout = 100) {
 
   useEffect(() => {
     const handler = (e) => {
+      // Abaikan ketikan di field input — field itu punya submit sendiri.
+      // Tanpa ini, scan saat input manual fokus akan terkirim dua kali
+      // (form submit + hook ini) dan tercatat sebagai "Sudah Hadir".
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+        buffer.current = ''
+        return
+      }
+
       const now = Date.now()
 
       // Jika jeda antar keystroke lebih dari timeout,

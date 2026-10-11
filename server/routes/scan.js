@@ -1,5 +1,5 @@
 import express from 'express'
-import { findInvitation, getAttendanceByQr, recordAttendance, getAllEvents } from '../db.js'
+import { findInvitation, getAttendanceByQr, recordAttendance, getAllEvents, getScanDetail } from '../db.js'
 
 const router = express.Router()
 
@@ -10,7 +10,8 @@ function getDefaultEventId() {
 }
 
 router.post('/', (req, res) => {
-  const { qr_code, scanner_id, event_id } = req.body
+  const { scanner_id, event_id } = req.body
+  const qr_code = typeof req.body.qr_code === 'string' ? req.body.qr_code.trim() : ''
 
   if (!qr_code) {
     return res.status(400).json({ status: 'error', message: 'qr_code wajib diisi' })
@@ -29,17 +30,28 @@ router.post('/', (req, res) => {
   }
 
   const existing = getAttendanceByQr(targetEventId, qr_code)
+  const status = existing ? 'duplicate' : 'success'
+  const scannerId = scanner_id || 'unknown'
   const scanned_at = new Date().toISOString()
 
-  if (existing) {
-    recordAttendance(targetEventId, qr_code, inv.name, scanner_id || 'unknown', 'duplicate')
-    io.emit('attendance_update', { status: 'duplicate', qr_code, name: inv.name, scanned_at, event_id: targetEventId })
-    return res.json({ status: 'duplicate', message: 'Sudah hadir', data: { qr_code, name: inv.name, scanned_at, event_id: targetEventId } })
+  recordAttendance(targetEventId, qr_code, inv.name, scannerId, status)
+
+  // Detail diambil setelah insert agar status keluarga sudah termasuk scan ini
+  const data = {
+    status,
+    qr_code,
+    name: inv.name,
+    scanner_id: scannerId,
+    scanned_at,
+    event_id: targetEventId,
+    ...getScanDetail(targetEventId, inv),
   }
 
-  recordAttendance(targetEventId, qr_code, inv.name, scanner_id || 'unknown', 'success')
-  io.emit('attendance_update', { status: 'success', qr_code, name: inv.name, scanned_at, event_id: targetEventId })
-  return res.json({ status: 'success', data: { qr_code, name: inv.name, scanned_at, event_id: targetEventId } })
+  io.emit('attendance_update', data)
+  if (status === 'duplicate') {
+    return res.json({ status, message: 'Sudah hadir', data })
+  }
+  return res.json({ status, data })
 })
 
 export default router

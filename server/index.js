@@ -1,7 +1,7 @@
+import './env.js'
 import express from 'express'
 import http from 'http'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import { Server } from 'socket.io'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -9,8 +9,6 @@ import db, { getStats, getAllAttendances, getAllInvitationsWithStatus, getAllEve
 import scanRouter from './routes/scan.js'
 import eventsRouter from './routes/events.js'
 import qrcodesRouter from './routes/qrcodes.js'
-
-dotenv.config()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

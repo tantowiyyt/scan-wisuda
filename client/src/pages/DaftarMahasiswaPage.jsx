@@ -18,6 +18,12 @@ export default function DaftarMahasiswaPage() {
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  // State modal reset presensi
+  const [showReset, setShowReset] = useState(false)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetError, setResetError] = useState(null)
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(null)
 
   // Redirect ke pilih event jika belum ada event yang dipilih
   useEffect(() => {
@@ -48,8 +54,44 @@ export default function DaftarMahasiswaPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   // Socket listener stabil — tidak buat fungsi baru tiap render
-  const handleAttendanceUpdate = useCallback(() => { fetchData() }, [fetchData])
+  const handleAttendanceUpdate = useCallback((data) => {
+    // Hanya refresh jika scan berasal dari event yang sedang dibuka
+    if (String(data?.event_id) === String(currentEventId)) fetchData()
+  }, [fetchData, currentEventId])
   useSocket('attendance_update', handleAttendanceUpdate)
+  useSocket('attendance_reset', handleAttendanceUpdate)
+
+  function closeReset() {
+    setShowReset(false)
+    setResetPassword('')
+    setResetError(null)
+  }
+
+  // Hapus semua data scan event aktif (butuh password dari server/.env)
+  async function handleReset(e) {
+    e.preventDefault()
+    setResetting(true)
+    setResetError(null)
+    try {
+      const res = await fetch(`${API_URL}/api/events/${currentEventId}/attendances`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: resetPassword }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.status !== 'success') {
+        throw new Error(json.message || `HTTP ${res.status}`)
+      }
+      closeReset()
+      setResetDone(`${json.data.deleted} data scan dihapus`)
+      setTimeout(() => setResetDone(null), 5000)
+      fetchData()
+    } catch (err) {
+      setResetError(err.message || 'Gagal reset presensi')
+    } finally {
+      setResetting(false)
+    }
+  }
 
   // Filter berdasarkan search (case-insensitive)
   const filtered = families.filter(f => {
@@ -73,17 +115,82 @@ export default function DaftarMahasiswaPage() {
             {currentEventName} • Hadir {stats.hadir} / Total {stats.total} keluarga
           </p>
         </div>
-        <a
-          href={`${API_URL}/api/events/${currentEventId}/report.csv`}
-          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
-                     text-white px-4 py-2 rounded-lg font-medium text-sm transition 
-                     shadow-sm"
-          download
-        >
-          <span>📥</span>
-          <span>Download Laporan CSV</span>
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={`${API_URL}/api/events/${currentEventId}/report.csv`}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
+                       text-white px-4 py-2 rounded-lg font-medium text-sm transition 
+                       shadow-sm"
+            download
+          >
+            <span>📥</span>
+            <span>Download Laporan CSV</span>
+          </a>
+          <button
+            onClick={() => setShowReset(true)}
+            className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 border border-rose-300
+                       dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50
+                       dark:hover:bg-rose-950/40 px-4 py-2 rounded-lg font-medium text-sm transition"
+          >
+            <span>🗑️</span>
+            <span>Reset Presensi</span>
+          </button>
+        </div>
       </div>
+
+      {/* Notifikasi reset berhasil */}
+      {resetDone && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-lg px-4 py-2 text-sm mb-4">
+          ✓ Presensi direset: {resetDone}
+        </div>
+      )}
+
+      {/* Modal konfirmasi reset presensi */}
+      {showReset && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4" onClick={closeReset}>
+          <form
+            onSubmit={handleReset}
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-5 w-full max-w-sm"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Reset Presensi</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
+              Semua data scan untuk <b>{currentEventName}</b> akan dihapus. Daftar undangan tetap ada.
+              Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Password reset
+            </label>
+            <input
+              type="password"
+              autoFocus
+              required
+              value={resetPassword}
+              onChange={e => setResetPassword(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900/50 outline-none transition"
+            />
+            {resetError && (
+              <p className="text-sm text-rose-600 dark:text-rose-400 mt-2">{resetError}</p>
+            )}
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                onClick={closeReset}
+                className="px-4 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={resetting || !resetPassword}
+                className="px-4 py-2 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium transition"
+              >
+                {resetting ? 'Menghapus...' : 'Hapus Presensi'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Search box */}
       <input
