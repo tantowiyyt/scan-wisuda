@@ -132,6 +132,9 @@ sudo journalctl -u scan-wisuda -f
 
 # Deploy ke VPS (Akses via Internet)
 
+> 📒 Catatan lengkap server produksi (cara SSH, perintah sehari-hari, ganti password,
+> pulihkan backup, masalah & solusinya) ada di **[VPS.md](./VPS.md)**.
+
 Semua perangkat scanner membuka `http://IP-VPS` (atau `https://domain`) dari browser.
 Aplikasi berjalan sebagai layanan systemd di belakang **nginx**; port 3000 tidak dibuka ke internet.
 

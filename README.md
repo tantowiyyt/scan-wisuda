@@ -64,7 +64,7 @@ VITE_SERVER_URL=http://localhost:3000
 
 ## Login
 
-Aplikasi wajib login. **Admin** (`ADMIN_PASSWORD`) punya akses penuh; **Operator** (`SCANNER_PASSWORD`) hanya bisa pilih event, scan, dan melihat daftar mahasiswa. Panduan hosting di VPS (nginx + HTTPS) ada di [DEPLOY.md](./DEPLOY.md#deploy-ke-vps-akses-via-internet).
+Aplikasi wajib login. **Admin** (`ADMIN_PASSWORD`) punya akses penuh; **Operator** (`SCANNER_PASSWORD`) hanya bisa pilih event, scan, dan melihat daftar mahasiswa. Panduan hosting di VPS ada di [DEPLOY.md](./DEPLOY.md#deploy-ke-vps-akses-via-internet); catatan operasional server produksi di [VPS.md](./VPS.md).
 
 ## Production Build
 
