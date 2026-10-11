@@ -13,7 +13,8 @@ dan cara mengatasi masalah yang pernah ditemui.
 | Hal | Nilai |
 |-----|-------|
 | Sistem operasi | Ubuntu 24.04 LTS |
-| Akses | `http://IP-VPS` (belum ada domain → belum HTTPS) |
+| Akses | `http://wisuda-qr-polindra.my.id` → **HTTPS belum dipasang** (lihat bagian 5) |
+| Domain | `wisuda-qr-polindra.my.id` — DNS di Rumahweb, record **A** → IP VPS (record `www` belum ada) |
 | User aplikasi | `wisuda` (aplikasi **tidak** dijalankan sebagai root) |
 | Folder aplikasi | `/home/wisuda/scan-wisuda` |
 | Pengaturan & password | `/home/wisuda/scan-wisuda/server/.env` |
@@ -307,32 +308,52 @@ Buka `http://IP-VPS` → login **admin** → **Events** → buat event → **Imp
 | Browser: **502 Bad Gateway** | Aplikasi Node mati / gagal start | `systemctl status scan-wisuda`, lihat `journalctl -u scan-wisuda --no-pager \| tail -30`, lalu `systemctl restart scan-wisuda` |
 | Log: `ADMIN_PASSWORD belum diisi` | `server/.env` kosong / salah tempat | Isi `/home/wisuda/scan-wisuda/server/.env`, restart |
 | `npm run build` gagal / proses terbunuh (*Killed*) | RAM habis | Pastikan swap aktif: `swapon --show` (langkah 3.2) |
+| `certbot: command not found` | Paket certbot belum dipasang | `apt install -y certbot python3-certbot-nginx` |
 | Tampilan web tidak berubah setelah update | Build belum dijalankan / cache browser | Ulangi `bash deploy.sh` + restart, lalu Ctrl+F5 di browser |
 | Semua perangkat terkunci login 1 menit | `TRUST_PROXY` tidak diisi | Isi `TRUST_PROXY=1` di `.env`, restart |
 
 ---
 
-## 5. Opsional: HTTPS
+## 5. HTTPS — ⏳ BELUM SELESAI (lanjutkan dari sini)
 
-Tanpa HTTPS, mode offline tetap jalan **selama tab tidak di-refresh**. Dengan HTTPS, halaman
-tetap bisa dibuka walau di-refresh saat internet putus (Service Worker aktif).
+Dengan HTTPS: ikon gembok, cookie login lebih aman, dan halaman tetap bisa dibuka walau
+di-refresh saat internet putus (Service Worker aktif). Sertifikat dari **Let's Encrypt — gratis**,
+berlaku 90 hari dan diperpanjang otomatis.
 
-Dengan domain (A record → IP VPS):
-```bash
-sed -i 's/server_name _;/server_name domain-anda.com;/' /etc/nginx/sites-available/scan-wisuda
-```
-```bash
-nginx -t && systemctl reload nginx
-```
+**Sudah dikerjakan**
+- [x] Record DNS **A** `wisuda-qr-polindra.my.id` → IP VPS di Rumahweb (Name dikosongkan; `@` tidak diterima form Rumahweb)
+- [x] Port 443 terbuka di panel penyedia (Tencent Cloud)
+
+**Langkah berikutnya** (sebagai root, satu baris per satu kali):
 ```bash
 apt install -y certbot python3-certbot-nginx
 ```
 ```bash
-certbot --nginx -d domain-anda.com
+sed -i 's/server_name _;/server_name wisuda-qr-polindra.my.id www.wisuda-qr-polindra.my.id;/' /etc/nginx/sites-available/scan-wisuda
 ```
+```bash
+nginx -t
+```
+```bash
+systemctl reload nginx
+```
+```bash
+certbot --nginx -d wisuda-qr-polindra.my.id --redirect
+```
+Isi email (untuk pemberitahuan), `Y` untuk Terms of Service, `N` untuk berbagi email dengan EFF.
+```bash
+certbot renew --dry-run
+```
+Harus: *"Congratulations, all simulated renewals succeeded"*.
 
-Tanpa membeli domain: bisa memakai alamat otomatis `IP-dengan-strip.sslip.io`
-(mis. `103-150-10-20.sslip.io`) dengan langkah yang sama.
+**Setelah HTTPS aktif**
+- Buka `https://wisuda-qr-polindra.my.id` — harus ada ikon gembok.
+- Semua perangkat **login ulang** di alamat https, isi ulang **nama perangkat**, dan buka halaman **Scan**
+  saat online (data tersimpan per alamat, jadi yang dari `http://IP` tidak ikut).
+- ⚠️ Jangan lagi menyalin `deploy/nginx-scan-wisuda.conf` ke `/etc/nginx/sites-available/` —
+  akan menghapus pengaturan SSL buatan certbot. Kalau terlanjur, jalankan ulang perintah `certbot` di atas.
+- Mau `www.wisuda-qr-polindra.my.id` juga? Tambah record **A** `www` → IP VPS di Rumahweb, lalu
+  `certbot --nginx -d wisuda-qr-polindra.my.id -d www.wisuda-qr-polindra.my.id --redirect`.
 
 ---
 
