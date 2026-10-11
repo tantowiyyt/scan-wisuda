@@ -5,6 +5,8 @@
 set -e
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Pindah ke folder aplikasi agar aman dijalankan dari folder mana pun (mis. /home/ubuntu)
+cd "$APP_DIR"
 DB="$APP_DIR/server/data/wisuda.db"
 DEST="$APP_DIR/server/data/backups"
 
