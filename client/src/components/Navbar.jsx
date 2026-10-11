@@ -2,11 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useDarkMode from '../hooks/useDarkMode'
+import { useAuth } from '../auth'
+import Logo from './Logo'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
 export default function Navbar() {
   const { dark, toggle } = useDarkMode()
+  const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
   const [events, setEvents] = useState([])
   const [open, setOpen] = useState(false)
@@ -75,11 +78,19 @@ export default function Navbar() {
   return (
     <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm px-6 py-3 flex items-center gap-6 transition-colors">
       <div className="flex items-center gap-3 mr-auto">
-        <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-lg">
-          🎓
+        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center p-0.5 ring-1 ring-slate-200 dark:ring-slate-700">
+          <Logo className="w-full h-full" fallbackClassName="text-lg" />
         </div>
-        <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Scan Wisuda</h1>
+        <div className="leading-tight">
+          <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Scan Wisuda</h1>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Politeknik Negeri Indramayu</p>
+        </div>
       </div>
+      {isAdmin && (
+        <NavLink to="/dashboard" className={linkClass}>
+          Dashboard
+        </NavLink>
+      )}
       <NavLink to="/pilih-event" className={linkClass}>
         Pilih Event
       </NavLink>
@@ -89,9 +100,11 @@ export default function Navbar() {
       <NavLink to="/mahasiswa" className={linkClass}>
         Daftar Mahasiswa
       </NavLink>
-      <NavLink to="/events" className={linkClass}>
-        Events
-      </NavLink>
+      {isAdmin && (
+        <NavLink to="/events" className={linkClass}>
+          Events
+        </NavLink>
+      )}
       <div ref={dropdownRef} className="relative">
         <button
           onClick={() => setOpen(!open)}
@@ -153,6 +166,19 @@ export default function Navbar() {
         {dark ? '☀️' : '🌙'}
       </button>
       <span className="text-xs text-slate-500 dark:text-slate-400">{dark ? 'Dark' : 'Light'}</span>
+      <div className="flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-slate-700">
+        <span className={`text-xs font-semibold px-2 py-1 rounded-md ${isAdmin
+          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300'
+          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+          {user?.role === 'admin' ? 'Admin' : 'Operator'}
+        </span>
+        <button
+          onClick={logout}
+          className="text-xs text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
+        >
+          Keluar
+        </button>
+      </div>
     </nav>
   )
 }

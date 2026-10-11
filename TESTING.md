@@ -25,17 +25,20 @@ Buka browser di `http://localhost:5173`.
 
 ---
 
-## 2. Scan Duplikat
+## 2. Scan Masuk Kembali
+
+Tamu boleh keluar-masuk (mis. ke WC) dengan membawa undangan. Scan ulang = normal.
 
 **Kode**: `WSD-001-A` (scan kedua kalinya)
 
 | Ekspektasi | Detail |
 |------------|--------|
-| Kotak status | Kuning dengan ikon ⚠ dan label "SUDAH HADIR" |
-| Nama wisudawan | Tetap tampil |
-| Suara | Bip panjang rendah (400 Hz, 200ms) |
+| Kotak status | Biru dengan ikon ↻ dan label "MASUK KEMBALI" |
+| Info | Jam & perangkat masuk pertama, scan ke-berapa |
+| Suara | Bip sukses (sama seperti hadir) |
 | Sidebar | Tidak ada entri baru (tidak double) |
-| Footer | Jumlah hadir tetap sama |
+| Statistik | Jumlah hadir tetap sama |
+| Dashboard | Bertambah di "Masuk kembali", **tidak** dihitung sebagai masalah |
 
 ---
 
@@ -76,7 +79,7 @@ Buka browser di `http://localhost:5173`.
 | Format | "Hadir: X / Total: 10" |
 | Setelah scan sukses pertama | "Hadir: 1 / Total: 10" |
 | Setelah scan sukses kedua | "Hadir: 2 / Total: 10" |
-| Setelah scan duplikat | Tidak berubah |
+| Setelah scan masuk kembali | Tidak berubah |
 
 ---
 

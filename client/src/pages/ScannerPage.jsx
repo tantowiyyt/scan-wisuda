@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import useScanner from '../hooks/useScanner'
 import useSocket from '../hooks/useSocket'
 import { playSuccess, playError } from '../utils/sound'
+import DeviceNameModal, { getDeviceName } from '../components/DeviceNameModal'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 const MAX_RECENT = 20
@@ -30,13 +31,14 @@ const TONE = {
     muted: 'text-emerald-700/80 dark:text-emerald-300/80',
     card: 'bg-white/70 dark:bg-slate-900/40 border-emerald-200 dark:border-emerald-800/60',
   },
+  // 'duplicate' = masuk kembali (habis ke WC dsb) — normal, bukan peringatan
   duplicate: {
-    box: 'from-amber-50 to-amber-100 dark:from-amber-950/50 dark:to-amber-900/30 border-amber-500 dark:border-amber-700',
-    icon: 'bg-amber-500 text-white',
-    title: 'text-amber-700 dark:text-amber-300',
-    name: 'text-amber-950 dark:text-amber-50',
-    muted: 'text-amber-700/80 dark:text-amber-300/80',
-    card: 'bg-white/70 dark:bg-slate-900/40 border-amber-200 dark:border-amber-800/60',
+    box: 'from-sky-50 to-sky-100 dark:from-sky-950/50 dark:to-sky-900/30 border-sky-500 dark:border-sky-700',
+    icon: 'bg-sky-500 text-white',
+    title: 'text-sky-700 dark:text-sky-300',
+    name: 'text-sky-950 dark:text-sky-50',
+    muted: 'text-sky-700/80 dark:text-sky-300/80',
+    card: 'bg-white/70 dark:bg-slate-900/40 border-sky-200 dark:border-sky-800/60',
   },
 }
 
@@ -54,7 +56,7 @@ function KategoriBadge({ kategori, className = '' }) {
   )
 }
 
-// Kotak besar hasil scan terakhir (success / duplicate)
+// Kotak besar hasil scan terakhir (success = hadir / duplicate = masuk kembali)
 function ScanResultCard({ result }) {
   const t = TONE[result.status]
   const isMahasiswa = result.kategori === 'mahasiswa'
@@ -78,10 +80,10 @@ function ScanResultCard({ result }) {
       {/* Status + kategori */}
       <div className="flex items-center gap-3">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold shrink-0 ${t.icon}`}>
-          {result.status === 'success' ? '✓' : '⚠'}
+          {result.status === 'success' ? '✓' : '↻'}
         </div>
         <div className={`text-3xl font-bold tracking-wide ${t.title}`}>
-          {result.status === 'success' ? 'HADIR' : 'SUDAH HADIR'}
+          {result.status === 'success' ? 'HADIR' : 'MASUK KEMBALI'}
         </div>
         <KategoriBadge kategori={result.kategori} className="ml-auto text-sm px-3 py-1" />
       </div>
@@ -94,11 +96,15 @@ function ScanResultCard({ result }) {
         </div>
       )}
 
-      {/* Peringatan duplikat: kapan pertama kali scan */}
+      {/* Info masuk kembali: riwayat scan undangan ini */}
       {result.status === 'duplicate' && (
-        <div className="mt-3 rounded-lg bg-amber-200/60 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 px-3 py-2 text-sm">
-          Undangan ini sudah dipakai masuk pukul <b>{fmtTime(result.first_scanned_at)}</b>.
-          Periksa kembali identitas tamu.
+        <div className="mt-3 rounded-lg bg-sky-200/50 dark:bg-sky-900/40 text-sky-900 dark:text-sky-100 px-3 py-2 text-sm flex flex-wrap gap-x-4 gap-y-1">
+          <span>Undangan sudah di-scan sebelumnya</span>
+          <span>Masuk pertama <b>{fmtTime(result.first_scanned_at)}</b>{result.first_scanner_id && ` · ${result.first_scanner_id}`}</span>
+          {result.previous_scanned_at && result.scan_count > 2 && (
+            <span>Scan terakhir <b>{fmtTime(result.previous_scanned_at)}</b></span>
+          )}
+          {result.scan_count > 1 && <span>Scan ke-<b>{result.scan_count}</b></span>}
         </div>
       )}
 
@@ -161,7 +167,9 @@ export default function ScannerPage() {
   const navigate = useNavigate()
   const currentEventId = localStorage.getItem('currentEventId')
   const currentEventName = localStorage.getItem('currentEventName')
-  const scannerId = localStorage.getItem('scanner_id') || 'PC-1'
+  const [scannerId, setScannerId] = useState(getDeviceName)
+  // Wajib isi nama perangkat sekali; bisa diubah lewat klik badge nama perangkat
+  const [editDevice, setEditDevice] = useState(false)
   const [lastResult, setLastResult] = useState(null)
   const [attendances, setAttendances] = useState([])
   const [stats, setStats] = useState({ total: 0, hadir: 0, belumHadir: 0 })
@@ -206,18 +214,13 @@ export default function ScannerPage() {
   const { status: connectionStatus } = useSocket('attendance_update', useCallback((data) => {
     // Server broadcast ke semua client — abaikan scan dari event lain
     if (String(data.event_id) !== String(currentEventId)) return
-    setLastResult(data)
+    // Kotak hasil & bunyi hanya untuk scan perangkat ini (lewat response handleScan).
+    // Socket hanya memperbarui daftar & statistik dari semua perangkat.
     setLastUpdateTime(new Date())
-    // Hanya tampilkan di sidebar jika status success
     if (data.status === 'success') {
       setAttendances((prev) => [data, ...prev].slice(0, MAX_RECENT))
     }
     fetchStats()
-    if (data.status === 'success') {
-      playSuccess()
-    } else {
-      playError()
-    }
   }, [fetchStats, currentEventId]))
 
   // Socket: presensi event ini di-reset dari PC lain
@@ -231,6 +234,8 @@ export default function ScannerPage() {
 
   // Fungsi handleScan: dikirim dari useScanner ATAU dari input manual
   async function handleScan(code) {
+    // Belum ada nama perangkat: modal sedang tampil, abaikan scan
+    if (!scannerId) return
     try {
       const res = await fetch(`${API_URL}/api/scan`, {
         method: 'POST',
@@ -241,16 +246,25 @@ export default function ScannerPage() {
           event_id: parseInt(currentEventId)
         })
       })
-      const json = await res.json()
-      // not_found ditangani di sini karena socket tidak emit event ini
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        // Error server (500, dsb) — BUKAN berarti QR tidak valid
+        setLastResult({ status: 'error', qr_code: code, message: json.message || `Server error (HTTP ${res.status})`, scanned_at: new Date().toISOString() })
+        playError()
+        return
+      }
       if (json.status === 'not_found') {
         setLastResult({ status: 'not_found', qr_code: code, scanned_at: new Date().toISOString() })
         playError()
+        return
       }
-      // success/duplicate sudah di-handle via socket event
+      setLastResult(json.data)
+      // Hadir & masuk kembali sama-sama normal → bunyi sukses
+      playSuccess()
     } catch (err) {
+      // Jaringan putus / server mati — tamu jangan ditolak, minta scan ulang
       console.error(err)
-      setLastResult({ status: 'not_found', qr_code: code, scanned_at: new Date().toISOString() })
+      setLastResult({ status: 'error', qr_code: code, message: 'Tidak dapat terhubung ke server. Periksa koneksi internet.', scanned_at: new Date().toISOString() })
       playError()
     }
   }
@@ -262,7 +276,18 @@ export default function ScannerPage() {
   const persen = stats.total > 0 ? Math.round((stats.hadir / stats.total) * 100) : 0
 
   return (
-    <div className="p-6 max-w-7xl mx-auto w-full flex flex-col gap-5 min-h-[calc(100vh-3.5rem)]">
+    // Tinggi dikunci = sisa layar di bawah navbar (grow + basis-0 + min-h-0),
+    // jadi daftar panjang hanya scroll di dalam panelnya, halaman tidak memanjang
+    <div className="grow basis-0 min-h-0 overflow-hidden p-6 max-w-7xl mx-auto w-full flex flex-col gap-5">
+
+      {(!scannerId || editDevice) && (
+        <DeviceNameModal
+          initial={scannerId}
+          required={!scannerId}
+          onSave={(name) => { setScannerId(name); setEditDevice(false) }}
+          onClose={() => setEditDevice(false)}
+        />
+      )}
 
       {/* Header: nama event + koneksi */}
       <div className="flex items-center justify-between gap-4 shrink-0">
@@ -271,7 +296,14 @@ export default function ScannerPage() {
           <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">{currentEventName || '-'}</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <span className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 font-mono">{scannerId}</span>
+          <button
+            type="button"
+            onClick={() => setEditDevice(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-slate-600 dark:text-slate-300 transition"
+            title="Ubah nama perangkat"
+          >
+            🖥️ {scannerId || 'Belum diberi nama'} <span className="opacity-60">✎</span>
+          </button>
           <span className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
             {connectionStatus === 'connected' ? 'Terhubung' : 'Terputus'}
@@ -318,7 +350,7 @@ export default function ScannerPage() {
       </div>
 
       {/* Grid utama */}
-      <div className="flex-1 grid grid-cols-3 gap-5 min-h-0">
+      <div className="flex-1 grid grid-cols-3 grid-rows-1 gap-5 min-h-0">
 
         {/* Kolom kiri: Input + Status */}
         <div className="col-span-2 flex flex-col gap-4 min-h-0">
@@ -367,6 +399,24 @@ export default function ScannerPage() {
                 atau cek kode secara manual.
               </div>
               <div className="text-xs text-rose-400 mt-2">{fmtTime(lastResult.scanned_at)}</div>
+            </div>
+          )}
+
+          {cfg === 'error' && (
+            <div
+              key={lastResult.scanned_at}
+              className="flex-1 rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-6 min-h-0 animate-pop-in transition-colors bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-500"
+            >
+              <div className="w-16 h-16 rounded-full bg-slate-500 text-white flex items-center justify-center mb-3">
+                <span className="text-3xl font-bold">!</span>
+              </div>
+              <div className="text-3xl font-bold text-slate-700 dark:text-slate-200">SCAN GAGAL TERKIRIM</div>
+              <div className="text-base text-slate-600 dark:text-slate-300 mt-2 text-center max-w-md">{lastResult.message}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400 mt-3 text-center max-w-md">
+                Kode <span className="font-mono font-semibold">{lastResult.qr_code}</span> <b>belum tercatat</b>.
+                Silakan scan ulang setelah koneksi kembali.
+              </div>
+              <div className="text-xs text-slate-400 mt-2">{fmtTime(lastResult.scanned_at)}</div>
             </div>
           )}
 
@@ -430,7 +480,7 @@ export default function ScannerPage() {
               <span className="text-indigo-900/70 dark:text-slate-400">{window.location.origin}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Scanner ID</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Perangkat</span>
               <span className="text-indigo-900/70 dark:text-slate-400">{scannerId}</span>
             </div>
             <div className="flex justify-between">

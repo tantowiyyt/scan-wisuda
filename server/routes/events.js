@@ -1,9 +1,8 @@
 import express from 'express'
 import multer from 'multer'
-import crypto from 'crypto'
+import { requireAdmin, safeEqual, createAttemptLimiter } from '../auth.js'
 import * as XLSX from 'xlsx'
 import {
-  getAllEvents,
   getEventById,
   createEvent,
   updateEvent,
@@ -11,10 +10,19 @@ import {
   createInvitation,
   getFamiliesWithStatus,
   countInvitationsByEvent,
-  deleteAttendancesByEvent
+  deleteAttendancesByEvent,
+  getEventsWithStats,
+  getDashboard
 } from '../db.js'
 
 const router = express.Router()
+
+// Operator hanya boleh membaca (list event, detail, daftar undangan).
+// Ubah data & laporan CSV khusus admin.
+router.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.endsWith('/report.csv')) return next()
+  return requireAdmin(req, res, next)
+})
 
 // Helper: escape CSV value
 function escapeCsv(val) {
@@ -128,7 +136,7 @@ function getVal(row, keys) {
 
 // A. GET /api/events -> list semua event
 router.get('/', (req, res) => {
-  res.json({ status: 'success', data: getAllEvents() })
+  res.json({ status: 'success', data: getEventsWithStats() })
 })
 
 // B. GET /api/events/:id -> detail satu event
@@ -246,17 +254,8 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
   }
 })
 
-// Batas percobaan password reset (in-memory, per IP): 5x salah → kunci 1 menit
-const MAX_ATTEMPTS = 5
-const LOCK_MS = 60 * 1000
-const resetAttempts = new Map()
-
-function checkPassword(input, expected) {
-  // Bandingkan hash agar panjang sama & waktu konstan (anti timing attack)
-  const a = crypto.createHash('sha256').update(String(input ?? '')).digest()
-  const b = crypto.createHash('sha256').update(expected).digest()
-  return crypto.timingSafeEqual(a, b)
-}
+// Batas percobaan password reset per IP: 5x salah → kunci 1 menit
+const resetLimiter = createAttemptLimiter({ maxAttempts: 5, lockMs: 60 * 1000 })
 
 // I. DELETE /api/events/:id/attendances -> reset presensi (butuh RESET_PASSWORD)
 router.delete('/:id/attendances', (req, res) => {
@@ -266,23 +265,17 @@ router.delete('/:id/attendances', (req, res) => {
   }
 
   const ip = req.ip
-  const now = Date.now()
-  const rec = resetAttempts.get(ip) || { count: 0, lockedUntil: 0 }
-  if (rec.lockedUntil > now) {
-    const sisa = Math.ceil((rec.lockedUntil - now) / 1000)
+  const sisa = resetLimiter.lockedFor(ip)
+  if (sisa) {
     return res.status(429).json({ status: 'error', message: `Terlalu banyak percobaan salah. Coba lagi dalam ${sisa} detik.` })
   }
 
-  if (!checkPassword(req.body?.password, expected)) {
-    rec.count++
-    if (rec.count >= MAX_ATTEMPTS) {
-      rec.count = 0
-      rec.lockedUntil = now + LOCK_MS
-    }
-    resetAttempts.set(ip, rec)
-    return res.status(401).json({ status: 'error', message: 'Password salah' })
+  if (!safeEqual(req.body?.password, expected)) {
+    resetLimiter.fail(ip)
+    // 403 (bukan 401): 401 dipakai client sebagai tanda sesi login habis
+    return res.status(403).json({ status: 'error', message: 'Password reset salah' })
   }
-  resetAttempts.delete(ip)
+  resetLimiter.reset(ip)
 
   const eventId = parseInt(req.params.id)
   const event = getEventById(eventId)
@@ -294,6 +287,16 @@ router.delete('/:id/attendances', (req, res) => {
   console.log(`[reset] ${deleted} data scan dihapus dari event "${event.name}" oleh ${ip}`)
   req.app.get('io').emit('attendance_reset', { event_id: eventId })
   res.json({ status: 'success', data: { deleted } })
+})
+
+// J. GET /api/events/:id/dashboard -> ringkasan pemantauan (khusus admin)
+router.get('/:id/dashboard', requireAdmin, (req, res) => {
+  const eventId = parseInt(req.params.id)
+  const event = getEventById(eventId)
+  if (!event) {
+    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+  }
+  res.json({ status: 'success', data: { event, ...getDashboard(eventId) } })
 })
 
 // G. GET /api/events/:id/invitations -> list undangan per event (kelompok per keluarga)

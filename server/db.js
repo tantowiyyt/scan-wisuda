@@ -55,7 +55,18 @@ db.exec(`
     qr_code TEXT NOT NULL,
     name TEXT,
     scanner_id TEXT,
+    -- success = masuk pertama; duplicate = masuk kembali (mis. habis ke WC), bukan pelanggaran
     status TEXT CHECK(status IN ('success','duplicate')),
+    scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+  );
+
+  -- Scan QR tidak valid, untuk statistik & pemantauan perangkat di dashboard
+  CREATE TABLE IF NOT EXISTS scan_errors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    qr_code TEXT,
+    scanner_id TEXT,
     scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
   );
@@ -85,6 +96,13 @@ const getFamilyMembersStmt = db.prepare(`
   FROM invitations i
   WHERE i.event_id = ? AND i.family_group = ?
   ORDER BY CASE i.kategori WHEN 'mahasiswa' THEN 0 WHEN 'ayah' THEN 1 WHEN 'ibu' THEN 2 ELSE 3 END
+`)
+// Riwayat scan satu undangan: berapa kali di-scan & perangkat masuk pertama
+const getScanHistoryStmt = db.prepare(`
+  SELECT COUNT(*) AS scan_count,
+    (SELECT scanner_id FROM attendances
+      WHERE event_id = ? AND qr_code = ? AND status = 'success' ORDER BY id LIMIT 1) AS first_scanner_id
+  FROM attendances WHERE event_id = ? AND qr_code = ?
 `)
 const getStatsStmt = db.prepare(`
   SELECT 
@@ -125,6 +143,68 @@ const updateEventStmt = db.prepare('UPDATE events SET name = ?, year = ?, event_
 const deleteEventStmt = db.prepare('DELETE FROM events WHERE id = ?')
 const createInvitationStmt = db.prepare('INSERT OR IGNORE INTO invitations (event_id, family_group, qr_code, name, prodi, jenjang, nim, kelas, kategori, quota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
 const deleteAttendancesByEventStmt = db.prepare('DELETE FROM attendances WHERE event_id = ?')
+const deleteScanErrorsByEventStmt = db.prepare('DELETE FROM scan_errors WHERE event_id = ?')
+const recordScanErrorStmt = db.prepare('INSERT INTO scan_errors (event_id, qr_code, scanner_id) VALUES (?, ?, ?)')
+
+// Daftar event + ringkasan keluarga terdaftar & hadir (untuk kartu Pilih Event)
+const getEventsWithStatsStmt = db.prepare(`
+  SELECT e.*,
+    (SELECT COUNT(DISTINCT family_group) FROM invitations WHERE event_id = e.id) AS total_keluarga,
+    (SELECT COUNT(DISTINCT i.family_group) FROM invitations i
+      JOIN attendances a ON a.event_id = i.event_id AND a.qr_code = i.qr_code AND a.status = 'success'
+      WHERE i.event_id = e.id AND i.kategori = 'mahasiswa') AS hadir_keluarga
+  FROM events e
+  ORDER BY e.year DESC, e.id DESC
+`)
+
+// --- Query dashboard admin ---
+const dashKategoriStmt = db.prepare(`
+  SELECT i.kategori, COUNT(*) AS total, COUNT(h.qr_code) AS hadir
+  FROM invitations i
+  LEFT JOIN (SELECT DISTINCT qr_code FROM attendances WHERE event_id = ? AND status = 'success') h
+    ON h.qr_code = i.qr_code
+  WHERE i.event_id = ?
+  GROUP BY i.kategori
+`)
+const dashCountsStmt = db.prepare(`
+  SELECT
+    (SELECT COUNT(*) FROM attendances WHERE event_id = ? AND status = 'success') AS success,
+    (SELECT COUNT(*) FROM attendances WHERE event_id = ? AND status = 'duplicate') AS reentry,
+    (SELECT COUNT(*) FROM scan_errors WHERE event_id = ?) AS invalid
+`)
+// Jumlah scan sukses per 15 menit (bucket UTC, ditampilkan jam lokal di client)
+const dashTimelineStmt = db.prepare(`
+  SELECT strftime('%Y-%m-%dT%H:', scanned_at)
+      || printf('%02d', (CAST(strftime('%M', scanned_at) AS INTEGER) / 15) * 15)
+      || ':00Z' AS bucket,
+    COUNT(*) AS total
+  FROM attendances
+  WHERE event_id = ? AND status = 'success'
+  GROUP BY bucket
+  ORDER BY bucket
+`)
+const dashDevicesStmt = db.prepare(`
+  SELECT scanner_id,
+    SUM(status = 'success') AS success,
+    SUM(status = 'duplicate') AS reentry,
+    SUM(status = 'invalid') AS invalid,
+    strftime('%Y-%m-%dT%H:%M:%SZ', MAX(scanned_at)) AS last_at
+  FROM (
+    SELECT scanner_id, status, scanned_at FROM attendances WHERE event_id = ?
+    UNION ALL
+    SELECT scanner_id, 'invalid', scanned_at FROM scan_errors WHERE event_id = ?
+  )
+  GROUP BY scanner_id
+  ORDER BY scanner_id
+`)
+// Scan QR tidak valid terbaru (masuk kembali bukan masalah, jadi tidak ikut)
+const dashIssuesStmt = db.prepare(`
+  SELECT qr_code, scanner_id, strftime('%Y-%m-%dT%H:%M:%SZ', scanned_at) AS scanned_at
+  FROM scan_errors
+  WHERE event_id = ?
+  ORDER BY scanned_at DESC, id DESC
+  LIMIT 10
+`)
 const countInvitationsByEventStmt = db.prepare('SELECT COUNT(*) as count FROM invitations WHERE event_id = ?')
 
 const getInvitationsForQRCodesStmt = db.prepare(`
@@ -182,6 +262,7 @@ export function getScanDetail(eventId, inv) {
     prodi: mhs.prodi || null,
     jenjang: mhs.jenjang || null,
     first_scanned_at: self.scanned_at || null,
+    ...getScanHistoryStmt.get(eventId, inv.qr_code, eventId, inv.qr_code),
     family: members.map(m => ({ kategori: m.kategori, name: m.name, qr_code: m.qr_code, scanned_at: m.scanned_at })),
   }
 }
@@ -240,8 +321,32 @@ export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenj
 }
 
 // Hapus semua data scan satu event (undangan tetap ada)
-export function deleteAttendancesByEvent(eventId) {
+export const deleteAttendancesByEvent = db.transaction((eventId) => {
+  deleteScanErrorsByEventStmt.run(eventId)
   return deleteAttendancesByEventStmt.run(eventId).changes
+})
+
+export function recordScanError(eventId, qrCode, scannerId) {
+  return recordScanErrorStmt.run(eventId, qrCode, scannerId)
+}
+
+export function getEventsWithStats() {
+  return getEventsWithStatsStmt.all()
+}
+
+export function getDashboard(eventId) {
+  const kategori = {}
+  for (const row of dashKategoriStmt.all(eventId, eventId)) {
+    kategori[row.kategori] = { total: row.total, hadir: row.hadir }
+  }
+  return {
+    keluarga: getStats(eventId),
+    kategori,
+    scans: dashCountsStmt.get(eventId, eventId, eventId),
+    timeline: dashTimelineStmt.all(eventId),
+    devices: dashDevicesStmt.all(eventId, eventId),
+    issues: dashIssuesStmt.all(eventId),
+  }
 }
 
 export function countInvitationsByEvent(eventId) {

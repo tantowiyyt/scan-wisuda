@@ -6,7 +6,7 @@ Sistem absensi digital untuk wisuda menggunakan QR code scanner (HID keyboard mo
 
 - **Scan HID Keyboard** — Kompatibel dengan USB barcode scanner mode keyboard, tanpa driver khusus
 - **Real-time Update** — Menggunakan Socket.IO, semua client terhubung langsung mendapat update
-- **Deteksi Duplikat** — Wisudawan yang sudah hadir akan ditandai "Sudah Hadir" (kuning)
+- **Masuk Kembali** — Tamu boleh keluar-masuk (mis. ke WC); scan ulang ditandai "Masuk Kembali" (biru) beserta jam masuk pertama, tidak dihitung ganda
 - **Validasi QR** — QR code tidak valid ditampilkan merah dengan peringatan
 - **Statistik Live** — Jumlah hadir vs total wisudawan ditampilkan di footer
 - **Suara Feedback** — Bunyi bip untuk konfirmasi scan (berbeda untuk sukses/gagal)
@@ -47,6 +47,8 @@ Buat file `.env` berdasarkan `.env.example` di masing-masing folder:
 ```
 PORT=3000
 DB_PATH=./data/wisuda.db   # relatif terhadap folder server/
+ADMIN_PASSWORD=            # login admin (WAJIB)
+SCANNER_PASSWORD=          # login operator scanner; kosong = nonaktif
 RESET_PASSWORD=            # password tombol "Reset Presensi"; kosong = fitur nonaktif
 ```
 
@@ -58,6 +60,10 @@ Halaman **Daftar Mahasiswa** → tombol **Reset Presensi** → masukkan password
 ```
 VITE_SERVER_URL=http://localhost:3000
 ```
+
+## Login
+
+Aplikasi wajib login. **Admin** (`ADMIN_PASSWORD`) punya akses penuh; **Operator** (`SCANNER_PASSWORD`) hanya bisa pilih event, scan, dan melihat daftar mahasiswa. Panduan hosting di VPS (nginx + HTTPS) ada di [DEPLOY.md](./DEPLOY.md#deploy-ke-vps-akses-via-internet).
 
 ## Production Build
 

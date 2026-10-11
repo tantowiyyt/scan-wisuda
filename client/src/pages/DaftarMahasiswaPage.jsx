@@ -6,11 +6,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSocket from '../hooks/useSocket'
+import { useAuth } from '../auth'
+import PasswordInput from '../components/PasswordInput'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
 export default function DaftarMahasiswaPage() {
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const currentEventId = localStorage.getItem('currentEventId')
   const currentEventName = localStorage.getItem('currentEventName')
   const [families, setFamilies] = useState([])
@@ -115,27 +118,30 @@ export default function DaftarMahasiswaPage() {
             {currentEventName} • Hadir {stats.hadir} / Total {stats.total} keluarga
           </p>
         </div>
-        <div className="flex gap-2">
-          <a
-            href={`${API_URL}/api/events/${currentEventId}/report.csv`}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
-                       text-white px-4 py-2 rounded-lg font-medium text-sm transition 
-                       shadow-sm"
-            download
-          >
-            <span>📥</span>
-            <span>Download Laporan CSV</span>
-          </a>
-          <button
-            onClick={() => setShowReset(true)}
-            className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 border border-rose-300
-                       dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50
-                       dark:hover:bg-rose-950/40 px-4 py-2 rounded-lg font-medium text-sm transition"
-          >
-            <span>🗑️</span>
-            <span>Reset Presensi</span>
-          </button>
-        </div>
+        {/* Laporan & reset khusus admin */}
+        {isAdmin && (
+          <div className="flex gap-2">
+            <a
+              href={`${API_URL}/api/events/${currentEventId}/report.csv`}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
+                         text-white px-4 py-2 rounded-lg font-medium text-sm transition 
+                         shadow-sm"
+              download
+            >
+              <span>📥</span>
+              <span>Download Laporan CSV</span>
+            </a>
+            <button
+              onClick={() => setShowReset(true)}
+              className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 border border-rose-300
+                         dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50
+                         dark:hover:bg-rose-950/40 px-4 py-2 rounded-lg font-medium text-sm transition"
+            >
+              <span>🗑️</span>
+              <span>Reset Presensi</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Notifikasi reset berhasil */}
@@ -161,8 +167,7 @@ export default function DaftarMahasiswaPage() {
             <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Password reset
             </label>
-            <input
-              type="password"
+            <PasswordInput
               autoFocus
               required
               value={resetPassword}

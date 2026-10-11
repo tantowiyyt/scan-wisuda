@@ -12,6 +12,7 @@ server/data/*.db
 server/data/*.db-wal
 server/data/*.db-shm
 server/data/backups/
+server/data/session-secret
 /data/
 
 # Environment

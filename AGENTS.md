@@ -34,7 +34,11 @@ npm start       # Jalankan server production (port 3000)
 - **QR format**: Plain text per anggota keluarga — `<family_group>-A` (mahasiswa), `-B` (ayah), `-C` (ibu), contoh: `WSD-001-A`
 - **Env server**: `server/.env` selalu dibaca (via `server/env.js`); `DB_PATH` relatif di-resolve dari folder `server/`
 - **Timestamp**: `scanned_at` disimpan UTC di SQLite, dikirim API sebagai ISO dengan `Z`
-- **Auth minimal**: `scanner_id` via localStorage, default `PC-1`
+- **Auth**: login password-only (`server/auth.js`). Role `admin` (`ADMIN_PASSWORD`) & `operator` (`SCANNER_PASSWORD`), sesi cookie httpOnly bertanda tangan HMAC. Semua `/api` (kecuali `/api/auth/*`) & Socket.IO wajib login; ubah data, laporan & QR khusus admin
+- **Nama perangkat**: `scanner_id` via localStorage, wajib diisi sekali di halaman Scan (modal), dikirim di setiap scan. Kotak hasil & bunyi hanya untuk scan perangkat sendiri (dari response HTTP); socket hanya memperbarui daftar & statistik
+- **Halaman awal**: admin → `/dashboard`; operator → `/scan` jika event sudah dipilih, selain itu `/pilih-event`
+- **Masuk kembali**: tamu boleh keluar-masuk membawa undangan; scan ulang disimpan sebagai status `duplicate` tapi ditampilkan "MASUK KEMBALI" (biru, bunyi sukses), bukan peringatan. Tidak ada scan keluar
+- **Scan tidak valid** dicatat di tabel `scan_errors` (dipakai dashboard; ikut terhapus saat reset presensi)
 - **Jangan commit file `.env`** — gunakan `.env.example` sebagai template
 
 ## Struktur Folder
@@ -49,10 +53,12 @@ scan-wisuda/
 │   ├── package.json
 │   ├── .env.example
 │   ├── env.js            # Load server/.env (import pertama)
+│   ├── auth.js           # Sesi login, role, middleware, limiter password
 │   ├── index.js          # Express + Socket.IO server
 │   ├── db.js             # SQLite setup + query
 │   ├── seed.js           # Database seeder
 │   ├── routes/
+│   │   ├── auth.js       # Login / logout / me
 │   │   ├── scan.js       # POST /api/scan
 │   │   ├── events.js     # CRUD event, import Excel, laporan CSV
 │   │   └── qrcodes.js    # QR PNG/ZIP, CSV mail merge
@@ -66,10 +72,14 @@ scan-wisuda/
     ├── index.html
     └── src/
         ├── main.jsx       # Entry point React
-        ├── App.jsx        # Root component + routes
+        ├── App.jsx        # Root component + routes (gate login, AdminOnly)
+        ├── auth.jsx       # AuthProvider, useAuth, interceptor 401
         ├── index.css      # Tailwind directives
         ├── components/
-        │   └── Navbar.jsx      # Navigasi + pilih event aktif
+        │   ├── Navbar.jsx      # Navigasi + pilih event aktif
+        │   ├── Logo.jsx        # Logo Polindra (public/logo-polindra.png)
+        │   ├── PasswordInput.jsx
+        │   └── DeviceNameModal.jsx # Nama perangkat scanner
         ├── constants/
         │   └── labels.js       # Ukuran stiker label (103/107/121)
         ├── hooks/
@@ -77,27 +87,34 @@ scan-wisuda/
         │   ├── useSocket.js    # Koneksi Socket.IO
         │   └── useDarkMode.js  # Toggle dark mode
         ├── pages/
+        │   ├── LoginPage.jsx
+        │   ├── DashboardPage.jsx       # Pemantauan admin
         │   ├── PilihEventPage.jsx
         │   ├── ScannerPage.jsx         # Halaman utama scanner
         │   ├── DaftarMahasiswaPage.jsx
         │   ├── ManagementEventsPage.jsx
         │   └── CetakQRPage.jsx
         └── utils/
+            ├── eventTiming.js  # Status Hari ini / Akan datang / Selesai
             └── sound.js        # Web Audio API beep
 ```
 
 ## API Endpoints
 | Method | Endpoint | Keterangan |
 |--------|----------|------------|
-| POST | `/api/scan` | `{ qr_code, scanner_id, event_id }` → `success` / `duplicate` / `not_found` |
+| POST | `/api/auth/login` | `{ password }` → set cookie sesi, balas `{ role }` (5x salah → kunci 1 menit) |
+| POST | `/api/auth/logout` | Hapus sesi |
+| GET | `/api/auth/me` | Role user saat ini atau `null` |
+| POST | `/api/scan` | `{ qr_code, scanner_id, event_id }` → `success` (hadir) / `duplicate` (masuk kembali, normal) / `not_found` |
 | GET | `/api/attendances?event_id=` | Kehadiran terakhir (status success) |
 | GET | `/api/stats?event_id=` | `{ total, hadir, belumHadir }` per keluarga |
 | GET | `/api/invitations?event_id=` | Semua undangan + status |
-| GET/POST | `/api/events` | List / buat event |
+| GET/POST | `/api/events` | List event (+ `total_keluarga`, `hadir_keluarga`) / buat event |
 | GET/PUT/DELETE | `/api/events/:id` | Detail / update / hapus (cascade) |
 | POST | `/api/events/:id/import` | Upload Excel (field `file`), 1 baris → 3 undangan |
 | GET | `/api/events/:id/invitations` | Undangan dikelompokkan per keluarga |
 | GET | `/api/events/:id/report.csv` | Laporan kehadiran CSV |
+| GET | `/api/events/:id/dashboard` | Ringkasan admin: keluarga, per kategori, total scan, timeline 15 menit, perangkat, scan bermasalah |
 | DELETE | `/api/events/:id/attendances` | Reset presensi, body `{ password }` = `RESET_PASSWORD` (5x salah → kunci 1 menit) |
 | GET | `/api/events/:id/qrcodes/preview` | Data untuk cetak QR |
 | GET | `/api/events/:id/qrcodes/zip` | Semua QR PNG dalam ZIP |
@@ -107,3 +124,4 @@ scan-wisuda/
 Socket.IO (server → semua client, client wajib filter by `event_id`):
 - `attendance_update` → `{ status, qr_code, name, scanned_at, event_id }`
 - `attendance_reset` → `{ event_id }`
+- `scan_error` → `{ event_id }` (QR tidak valid, untuk refresh dashboard)

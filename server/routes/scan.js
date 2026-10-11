@@ -1,5 +1,5 @@
 import express from 'express'
-import { findInvitation, getAttendanceByQr, recordAttendance, getAllEvents, getScanDetail } from '../db.js'
+import { findInvitation, getAttendanceByQr, recordAttendance, getAllEvents, getScanDetail, recordScanError } from '../db.js'
 
 const router = express.Router()
 
@@ -10,7 +10,9 @@ function getDefaultEventId() {
 }
 
 router.post('/', (req, res) => {
-  const { scanner_id, event_id } = req.body
+  const { event_id } = req.body
+  // Nama perangkat dari client, dibatasi agar data tetap rapi
+  const scannerId = (typeof req.body.scanner_id === 'string' && req.body.scanner_id.trim().slice(0, 40)) || 'unknown'
   const qr_code = typeof req.body.qr_code === 'string' ? req.body.qr_code.trim() : ''
 
   if (!qr_code) {
@@ -26,12 +28,14 @@ router.post('/', (req, res) => {
   const inv = findInvitation(targetEventId, qr_code)
 
   if (!inv) {
+    recordScanError(targetEventId, qr_code.slice(0, 100), scannerId)
+    // Tidak di-broadcast sebagai attendance_update; cukup sinyal untuk dashboard
+    io.emit('scan_error', { event_id: targetEventId })
     return res.json({ status: 'not_found', message: 'QR tidak valid', event_id: targetEventId })
   }
 
   const existing = getAttendanceByQr(targetEventId, qr_code)
   const status = existing ? 'duplicate' : 'success'
-  const scannerId = scanner_id || 'unknown'
   const scanned_at = new Date().toISOString()
 
   recordAttendance(targetEventId, qr_code, inv.name, scannerId, status)
@@ -45,12 +49,13 @@ router.post('/', (req, res) => {
     scanned_at,
     event_id: targetEventId,
     ...getScanDetail(targetEventId, inv),
+    // Scan sebelumnya (untuk info "masuk kembali")
+    previous_scanned_at: existing ? existing.scanned_at.replace(' ', 'T') + 'Z' : null,
+    previous_scanner_id: existing ? existing.scanner_id : null,
   }
 
   io.emit('attendance_update', data)
-  if (status === 'duplicate') {
-    return res.json({ status, message: 'Sudah hadir', data })
-  }
+  // 'duplicate' = masuk kembali (normal, mis. habis ke WC)
   return res.json({ status, data })
 })
 
