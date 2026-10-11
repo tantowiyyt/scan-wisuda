@@ -1,0 +1,17 @@
+# systemd unit — salin ke /etc/systemd/system/scan-wisuda.service
+# Asumsi: user "wisuda", kode di /home/wisuda/scan-wisuda (lihat DEPLOY.md)
+[Unit]
+Description=Scan Wisuda Server
+After=network.target
+
+[Service]
+Type=simple
+User=wisuda
+WorkingDirectory=/home/wisuda/scan-wisuda
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
