@@ -377,6 +377,88 @@ export function createInvitation(eventId, familyGroup, qrCode, name, prodi, jenj
   return createInvitationStmt.run(eventId, familyGroup, qrCode, name, prodi || null, jenjang || null, nim || null, kelas || null, kategori, 1)
 }
 
+// ---------- Kelola satu keluarga (mahasiswa + ayah + ibu) ----------
+
+const getFamilyStmt = db.prepare('SELECT * FROM invitations WHERE event_id = ? AND family_group = ?')
+const updateMahasiswaStmt = db.prepare(`
+  UPDATE invitations SET name = ?, prodi = ?, jenjang = ?, nim = ?, kelas = ?
+  WHERE event_id = ? AND qr_code = ?
+`)
+const updateInvitationNameStmt = db.prepare('UPDATE invitations SET name = ? WHERE event_id = ? AND qr_code = ?')
+// Nama di attendances adalah salinan saat scan; ikut diperbarui agar laporan konsisten
+const updateAttendanceNameStmt = db.prepare('UPDATE attendances SET name = ? WHERE event_id = ? AND qr_code = ?')
+const deleteAttendancesByQrStmt = db.prepare('DELETE FROM attendances WHERE event_id = ? AND qr_code = ?')
+const deleteFamilyStmt = db.prepare('DELETE FROM invitations WHERE event_id = ? AND family_group = ?')
+
+// Nama orang tua otomatis dari nama mahasiswa (sama seperti saat import)
+export const defaultNamaAyah = (nama) => `Bapak sdr. ${nama}`
+export const defaultNamaIbu = (nama) => `Ibu sdr. ${nama}`
+
+export function getFamily(eventId, familyGroup) {
+  return getFamilyStmt.all(eventId, familyGroup)
+}
+
+// d: { qr_code, name, prodi, jenjang, nim, kelas, nama_ayah?, nama_ibu? }
+export const createFamily = db.transaction((eventId, d) => {
+  const base = d.qr_code
+  return [
+    createInvitation(eventId, base, `${base}-A`, d.name, d.prodi, d.jenjang, 'mahasiswa', d.nim, d.kelas),
+    createInvitation(eventId, base, `${base}-B`, d.nama_ayah || defaultNamaAyah(d.name), null, null, 'ayah', null, null),
+    createInvitation(eventId, base, `${base}-C`, d.nama_ibu || defaultNamaIbu(d.name), null, null, 'ibu', null, null),
+  ].reduce((sum, r) => sum + r.changes, 0)
+})
+
+function renameMember(eventId, member, name) {
+  if (!member || !name || member.name === name) return false
+  updateInvitationNameStmt.run(name, eventId, member.qr_code)
+  updateAttendanceNameStmt.run(name, eventId, member.qr_code)
+  return true
+}
+
+/**
+ * Perbarui data keluarga. d: { name, prodi, jenjang, nim, kelas, nama_ayah?, nama_ibu? }
+ * Kode QR tidak bisa diubah (undangan sudah dicetak).
+ * Kalau nama_ayah/nama_ibu tidak dikirim, nama orang tua yang masih format otomatis
+ * ("Bapak sdr. <nama lama>") ikut disesuaikan; nama yang sudah diedit manual dibiarkan.
+ * Kembalikan true kalau ada yang berubah.
+ */
+export const updateFamily = db.transaction((eventId, familyGroup, d) => {
+  const members = getFamilyStmt.all(eventId, familyGroup)
+  const mhs = members.find(m => m.kategori === 'mahasiswa')
+  if (!mhs) return false
+  const ayah = members.find(m => m.kategori === 'ayah')
+  const ibu = members.find(m => m.kategori === 'ibu')
+
+  const next = {
+    name: d.name ?? mhs.name,
+    prodi: d.prodi !== undefined ? (d.prodi || null) : mhs.prodi,
+    jenjang: d.jenjang !== undefined ? (d.jenjang || null) : mhs.jenjang,
+    nim: d.nim !== undefined ? (d.nim || null) : mhs.nim,
+    kelas: d.kelas !== undefined ? (d.kelas || null) : mhs.kelas,
+  }
+  let changed = false
+  if (['name', 'prodi', 'jenjang', 'nim', 'kelas'].some(k => (next[k] ?? null) !== (mhs[k] ?? null))) {
+    updateMahasiswaStmt.run(next.name, next.prodi, next.jenjang, next.nim, next.kelas, eventId, mhs.qr_code)
+    updateAttendanceNameStmt.run(next.name, eventId, mhs.qr_code)
+    changed = true
+  }
+
+  const namaAyah = d.nama_ayah
+    || (ayah && ayah.name === defaultNamaAyah(mhs.name) ? defaultNamaAyah(next.name) : null)
+  const namaIbu = d.nama_ibu
+    || (ibu && ibu.name === defaultNamaIbu(mhs.name) ? defaultNamaIbu(next.name) : null)
+  if (renameMember(eventId, ayah, namaAyah)) changed = true
+  if (renameMember(eventId, ibu, namaIbu)) changed = true
+  return changed
+})
+
+// Hapus satu keluarga beserta data scan-nya. Kembalikan jumlah undangan terhapus.
+export const deleteFamily = db.transaction((eventId, familyGroup) => {
+  const members = getFamilyStmt.all(eventId, familyGroup)
+  for (const m of members) deleteAttendancesByQrStmt.run(eventId, m.qr_code)
+  return deleteFamilyStmt.run(eventId, familyGroup).changes
+})
+
 // Hapus semua data scan satu event (undangan tetap ada)
 export const deleteAttendancesByEvent = db.transaction((eventId) => {
   deleteScanErrorsByEventStmt.run(eventId)

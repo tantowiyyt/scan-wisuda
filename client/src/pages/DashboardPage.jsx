@@ -165,6 +165,7 @@ export default function DashboardPage() {
   const { status: connectionStatus } = useSocket('attendance_update', scheduleFetch)
   useSocket('attendance_reset', scheduleFetch)
   useSocket('scan_error', scheduleFetch)
+  useSocket('invitations_changed', scheduleFetch)
 
   // Perbarui "x mnt lalu" & status perangkat, plus refresh berkala sebagai cadangan
   useEffect(() => {

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import useSocket from '../hooks/useSocket'
 import { useAuth } from '../auth'
 import PasswordInput from '../components/PasswordInput'
+import FamilyFormModal from '../components/FamilyFormModal'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || ''
 
@@ -27,6 +28,12 @@ export default function DaftarMahasiswaPage() {
   const [resetError, setResetError] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(null)
+  // Tambah/edit/hapus wisudawan (admin): formFamily = 'new' | objek keluarga
+  const [formFamily, setFormFamily] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [notice, setNotice] = useState(null)
 
   // Redirect ke pilih event jika belum ada event yang dipilih
   useEffect(() => {
@@ -63,6 +70,32 @@ export default function DaftarMahasiswaPage() {
   }, [fetchData, currentEventId])
   useSocket('attendance_update', handleAttendanceUpdate)
   useSocket('attendance_reset', handleAttendanceUpdate)
+  useSocket('invitations_changed', handleAttendanceUpdate)
+
+  function showNotice(msg) {
+    setNotice(msg)
+    setTimeout(() => setNotice(null), 5000)
+  }
+
+  async function handleDeleteFamily() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(
+        `${API_URL}/api/events/${currentEventId}/families/${encodeURIComponent(deleteTarget.family_group)}`,
+        { method: 'DELETE' }
+      )
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json.status !== 'success') throw new Error(json.message || `HTTP ${res.status}`)
+      showNotice(`${deleteTarget.mahasiswa?.name || deleteTarget.family_group} dihapus`)
+      setDeleteTarget(null)
+      fetchData()
+    } catch (err) {
+      setDeleteError(err.message || 'Gagal menghapus')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function closeReset() {
     setShowReset(false)
@@ -104,6 +137,7 @@ export default function DaftarMahasiswaPage() {
       f.family_group.toLowerCase().includes(q) ||
       (f.mahasiswa?.name || '').toLowerCase().includes(q) ||
       (f.mahasiswa?.prodi || '').toLowerCase().includes(q) ||
+      (f.mahasiswa?.nim || '').toLowerCase().includes(q) ||
       (f.mahasiswa?.qr_code || '').toLowerCase().includes(q)
     )
   })
@@ -121,6 +155,14 @@ export default function DaftarMahasiswaPage() {
         {/* Laporan & reset khusus admin */}
         {isAdmin && (
           <div className="flex gap-2">
+            <button
+              onClick={() => setFormFamily('new')}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white
+                         px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm"
+            >
+              <span>＋</span>
+              <span>Tambah Wisudawan</span>
+            </button>
             <a
               href={`${API_URL}/api/events/${currentEventId}/report.csv`}
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 
@@ -143,6 +185,60 @@ export default function DaftarMahasiswaPage() {
           </div>
         )}
       </div>
+
+      {notice && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-lg px-4 py-2 text-sm mb-4">
+          ✓ {notice}
+        </div>
+      )}
+
+      {formFamily && (
+        <FamilyFormModal
+          eventId={currentEventId}
+          family={formFamily === 'new' ? null : formFamily}
+          families={families}
+          onClose={() => setFormFamily(null)}
+          onSaved={(msg) => { setFormFamily(null); showNotice(msg); fetchData() }}
+        />
+      )}
+
+      {/* Modal konfirmasi hapus keluarga */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4" onClick={() => setDeleteTarget(null)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-5 w-full max-w-sm"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Hapus wisudawan?</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <b className="text-slate-700 dark:text-slate-200">{deleteTarget.mahasiswa?.name || deleteTarget.family_group}</b>
+              {' '}beserta undangan ayah & ibu (<span className="font-mono">{deleteTarget.family_group}-A/B/C</span>) akan dihapus.
+            </p>
+            {deleteTarget.hadir_count > 0 && (
+              <p className="mt-3 text-sm rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 px-3 py-2">
+                ⚠ {deleteTarget.hadir_count} anggota keluarga ini sudah tercatat hadir. Data kehadirannya ikut terhapus.
+              </p>
+            )}
+            <p className="text-xs text-slate-400 mt-3">QR yang sudah dicetak tidak akan bisa di-scan lagi. Tindakan ini tidak bisa dibatalkan.</p>
+            {deleteError && <p className="text-sm text-rose-600 dark:text-rose-400 mt-2">{deleteError}</p>}
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteFamily}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium transition"
+              >
+                {deleting ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notifikasi reset berhasil */}
       {resetDone && (
@@ -202,7 +298,7 @@ export default function DaftarMahasiswaPage() {
         type="text"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="Cari nama mahasiswa, prodi, atau kode QR..."
+        placeholder="Cari nama, NIM, prodi, atau kode QR..."
         className="w-full md:w-96 px-4 py-2 border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500 rounded-lg mb-4 focus:border-blue-500 focus:dark:border-blue-400 focus:outline-none bg-white transition-colors"
       />
 
@@ -271,6 +367,24 @@ export default function DaftarMahasiswaPage() {
                       {f.hadir_count} / {f.total_count} hadir
                     </p>
                   </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 flex-shrink-0 pl-2 border-l border-slate-100 dark:border-slate-700">
+                      <button
+                        onClick={() => setFormFamily(f)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 transition"
+                        title="Edit data"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => { setDeleteError(null); setDeleteTarget(f) }}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-700 transition"
+                        title="Hapus"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Baris anggota keluarga */}

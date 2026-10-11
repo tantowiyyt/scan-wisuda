@@ -299,6 +299,14 @@ export default function ScannerPage() {
     fetchStats()
   }, [fetchStats, currentEventId]))
 
+  // Admin menambah/mengubah/menghapus wisudawan → perbarui salinan offline segera
+  useSocket('invitations_changed', useCallback((data) => {
+    if (String(data.event_id) === String(currentEventId)) {
+      refreshCache()
+      fetchStats()
+    }
+  }, [currentEventId, refreshCache, fetchStats]))
+
   // Socket tersambung lagi → kirim antrean & perbarui salinan daftar
   useEffect(() => {
     if (connectionStatus === 'connected') {

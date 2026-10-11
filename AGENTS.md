@@ -80,7 +80,8 @@ scan-wisuda/
         │   ├── Navbar.jsx      # Navigasi + pilih event aktif
         │   ├── Logo.jsx        # Logo Polindra (public/logo-polindra.png)
         │   ├── PasswordInput.jsx
-        │   └── DeviceNameModal.jsx # Nama perangkat scanner
+        │   ├── DeviceNameModal.jsx # Nama perangkat scanner
+        │   └── FamilyFormModal.jsx # Tambah/edit wisudawan
         ├── constants/
         │   └── labels.js       # Ukuran stiker label (103/107/121)
         ├── hooks/
@@ -112,7 +113,10 @@ scan-wisuda/
 | GET | `/api/invitations?event_id=` | Semua undangan + status |
 | GET/POST | `/api/events` | List event (+ `total_keluarga`, `hadir_keluarga`) / buat event |
 | GET/PUT/DELETE | `/api/events/:id` | Detail / update / hapus (cascade) |
-| POST | `/api/events/:id/import` | Upload Excel (field `file`), 1 baris → 3 undangan |
+| POST | `/api/events/:id/import` | Upload Excel (field `file`), 1 baris → 3 undangan. Kode yang sudah ada **diperbarui** (kolom kosong tidak menimpa) |
+| POST | `/api/events/:id/families` | Tambah wisudawan `{ qr_code, name, nim, kelas, prodi, jenjang }` → 3 undangan |
+| PUT | `/api/events/:id/families/:family` | Edit data mahasiswa & nama ortu (kode QR tetap). Nama ortu format otomatis ikut nama baru |
+| DELETE | `/api/events/:id/families/:family` | Hapus keluarga + data scan-nya |
 | GET | `/api/events/:id/invitations` | Undangan dikelompokkan per keluarga |
 | GET | `/api/events/:id/report.csv` | Laporan kehadiran CSV |
 | GET | `/api/events/:id/dashboard` | Ringkasan admin: keluarga, per kategori, total scan, timeline 15 menit, perangkat, scan bermasalah |
@@ -127,3 +131,4 @@ Socket.IO (server → semua client, client wajib filter by `event_id`):
 - `attendance_update` → `{ status, qr_code, name, scanned_at, event_id }`
 - `attendance_reset` → `{ event_id }`
 - `scan_error` → `{ event_id }` (QR tidak valid, untuk refresh dashboard)
+- `invitations_changed` → `{ event_id }` (undangan ditambah/diedit/dihapus/import; scanner memperbarui salinan offline)

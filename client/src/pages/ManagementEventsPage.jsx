@@ -101,7 +101,7 @@ export default function ManagementEventsPage() {
         imported: json.data.imported,
         skipped: json.data.skipped,
         total: json.data.total,
-        message: `Import selesai: ${json.data.imported} berhasil, ${json.data.skipped} dilewati`
+        message: `Import selesai: ${json.data.families} wisudawan baru, ${json.data.updated} diperbarui, ${json.data.skipped} dilewati`
       })
       fetchEvents()
       setActiveEventId(parseInt(localStorage.getItem('currentEventId')) || null)

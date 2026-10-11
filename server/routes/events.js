@@ -7,7 +7,10 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  createInvitation,
+  getFamily,
+  createFamily,
+  updateFamily,
+  deleteFamily,
   getFamiliesWithStatus,
   countInvitationsByEvent,
   deleteAttendancesByEvent,
@@ -205,6 +208,8 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' })
 
     let imported = 0
+    let updated = 0
+    let unchanged = 0
     let skipped = 0
     let families = 0
 
@@ -228,27 +233,30 @@ router.post('/:id/import', upload.single('file'), (req, res) => {
         continue
       }
 
-      // Generate nama orang tua dari nama lengkap mahasiswa
-      const namaAyah = `Bapak sdr. ${namaMhs}`
-      const namaIbu = `Ibu sdr. ${namaMhs}`
+      // Kolom kosong di Excel = undefined → tidak menimpa data yang sudah ada saat update
+      const data = {
+        qr_code: qrBase,
+        name: namaMhs,
+        prodi: prodi || undefined,
+        jenjang: jenjangNorm || undefined,
+        nim: nim || undefined,
+        kelas: kelas || undefined,
+      }
 
-      // Insert 3 rows: mahasiswa (A), ayah (B), ibu (C)
-      const inserted = [
-        createInvitation(eventId, qrBase, `${qrBase}-A`, namaMhs, prodi || null, jenjangNorm, 'mahasiswa', nim || null, kelas || null),
-        createInvitation(eventId, qrBase, `${qrBase}-B`, namaAyah, null, null, 'ayah', null, null),
-        createInvitation(eventId, qrBase, `${qrBase}-C`, namaIbu, null, null, 'ibu', null, null),
-      ].reduce((sum, r) => sum + r.changes, 0)
-
-      // Baris yang QR-nya sudah ada di-IGNORE, jadi tidak dihitung sebagai imported
-      if (inserted === 0) {
-        skipped++
+      // Keluarga sudah ada → perbarui datanya (mis. koreksi salah ketik), bukan diabaikan
+      if (getFamily(eventId, qrBase).length > 0) {
+        if (updateFamily(eventId, qrBase, data)) updated++
+        else unchanged++
         continue
       }
-      imported += inserted
+
+      // Insert 3 rows: mahasiswa (A), ayah (B), ibu (C)
+      imported += createFamily(eventId, data)
       families++
     }
 
-    res.json({ status: 'success', data: { imported, skipped, total: rows.length, families } })
+    if (families > 0 || updated > 0) req.app.get('io').emit('invitations_changed', { event_id: eventId })
+    res.json({ status: 'success', data: { imported, updated, unchanged, skipped, total: rows.length, families } })
   } catch (err) {
     console.error('Import error:', err)
     res.status(500).json({ status: 'error', message: 'Gagal memproses file Excel' })
@@ -309,6 +317,77 @@ router.get('/:id/offline-data', (req, res) => {
     return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
   }
   res.json({ status: 'success', data: { event_id: eventId, generated_at: new Date().toISOString(), ...getOfflineData(eventId) } })
+})
+
+// --- Kelola satu keluarga dari tampilan (khusus admin, lewat router.use di atas) ---
+
+const QR_BASE_RE = /^[A-Za-z0-9._-]{1,40}$/
+const str = (v, max = 100) => (typeof v === 'string' ? v.trim().slice(0, max) : undefined)
+
+function familyInput(body) {
+  return {
+    name: str(body.name),
+    prodi: str(body.prodi),
+    jenjang: str(body.jenjang, 20)?.toUpperCase(),
+    nim: str(body.nim, 30),
+    kelas: str(body.kelas, 30),
+    nama_ayah: str(body.nama_ayah),
+    nama_ibu: str(body.nama_ibu),
+  }
+}
+
+function notifyInvitationsChanged(req, eventId) {
+  req.app.get('io').emit('invitations_changed', { event_id: eventId })
+}
+
+// L. POST /api/events/:id/families -> tambah wisudawan (3 undangan: A/B/C)
+router.post('/:id/families', (req, res) => {
+  const eventId = parseInt(req.params.id)
+  if (!getEventById(eventId)) {
+    return res.status(404).json({ status: 'error', message: 'Event tidak ditemukan' })
+  }
+  const qrBase = str(req.body.qr_code, 40) || ''
+  const d = familyInput(req.body)
+  if (!QR_BASE_RE.test(qrBase)) {
+    return res.status(400).json({ status: 'error', message: 'Kode QR wajib diisi (huruf, angka, - _ . ; maks 40 karakter)' })
+  }
+  if (!d.name) {
+    return res.status(400).json({ status: 'error', message: 'Nama mahasiswa wajib diisi' })
+  }
+  if (getFamily(eventId, qrBase).length > 0) {
+    return res.status(409).json({ status: 'error', message: `Kode QR ${qrBase} sudah dipakai di event ini` })
+  }
+  createFamily(eventId, { ...d, qr_code: qrBase })
+  notifyInvitationsChanged(req, eventId)
+  res.json({ status: 'success', data: { family_group: qrBase } })
+})
+
+// M. PUT /api/events/:id/families/:family -> edit data keluarga (kode QR tetap)
+router.put('/:id/families/:family', (req, res) => {
+  const eventId = parseInt(req.params.id)
+  const familyGroup = req.params.family
+  if (getFamily(eventId, familyGroup).length === 0) {
+    return res.status(404).json({ status: 'error', message: 'Keluarga tidak ditemukan' })
+  }
+  const d = familyInput(req.body)
+  if (d.name !== undefined && !d.name) {
+    return res.status(400).json({ status: 'error', message: 'Nama mahasiswa wajib diisi' })
+  }
+  const changed = updateFamily(eventId, familyGroup, d)
+  if (changed) notifyInvitationsChanged(req, eventId)
+  res.json({ status: 'success', data: { changed } })
+})
+
+// N. DELETE /api/events/:id/families/:family -> hapus keluarga + data scan-nya
+router.delete('/:id/families/:family', (req, res) => {
+  const eventId = parseInt(req.params.id)
+  const deleted = deleteFamily(eventId, req.params.family)
+  if (deleted === 0) {
+    return res.status(404).json({ status: 'error', message: 'Keluarga tidak ditemukan' })
+  }
+  console.log(`[family] ${req.params.family} dihapus dari event ${eventId} oleh ${req.ip}`)
+  notifyInvitationsChanged(req, eventId)
+  res.json({ status: 'success', data: { deleted } })
 })
 
 // G. GET /api/events/:id/invitations -> list undangan per event (kelompok per keluarga)
